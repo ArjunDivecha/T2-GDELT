@@ -1,32 +1,32 @@
 T2 Factor Timing Pipeline Execution Summary
 ==================================================
-Started: 2026-03-13 12:21:23.788682
-Completed: 2026-03-13 12:25:21.360193
-Total Duration: 252.61 seconds (4.2 minutes)
+Started: 2026-03-31 19:04:11.152401
+Completed: 2026-03-31 19:06:08.784233
+Total Duration: 128.73 seconds (2.1 minutes)
 Total Steps: 18
 Successful: 18
 Failed: 0
 
 Step-by-Step Results:
 --------------------------------------------------
-✓ Step 0 - Create P2P Scores - SUCCESS (15.04s)
-✓ Step 1 - Create T2 Master - SUCCESS (79.74s)
-✓ Step 2 - Create Normalized Tidy - SUCCESS (9.89s)
-✓ Step 2.5 - Create Benchmark Returns - SUCCESS (0.69s)
-✓ Step 3 - Top 20 Portfolios - SUCCESS (38.89s)
-✓ Step 4 - Create Monthly Top20 Returns - SUCCESS (32.19s)
-✓ Step 5 - FAST Optimizer - SUCCESS (11.96s)
-✓ Step 6 - Create Country Alphas - SUCCESS (3.67s)
-✓ Step 7 - Visualize Factor Weights - SUCCESS (2.39s)
-✓ Step 8 - Write Country Weights - SUCCESS (1.59s)
-✓ Step 9 - Calculate Portfolio Returns - SUCCESS (1.83s)
-✓ Step 14 - Target Optimization - SUCCESS (32.77s)
-✓ Step 16 - Factor Market Condition Analysis - SUCCESS (11.44s)
-✓ Step 17 - GMM Regime Analysis - SUCCESS (3.09s)
-✓ Step 18 - Asset Class Charts - SUCCESS (3.22s)
-✓ Step 20 - PORCH Factor Exposure - SUCCESS (2.76s)
-✓ Step 21 - Master Report - SUCCESS (1.07s)
-✓ FINALFINAL - Latest Alphas and Weights - SUCCESS (0.40s)
+✓ Step 0 - Create P2P Scores - SUCCESS (11.09s)
+✓ Step 1 - Create T2 Master - SUCCESS (58.41s)
+✓ Step 2 - Create Normalized Tidy - SUCCESS (4.59s)
+✓ Step 2.5 - Create Benchmark Returns - SUCCESS (0.52s)
+✓ Step 3 - Top 20 Portfolios - SUCCESS (13.38s)
+✓ Step 4 - Create Monthly Top20 Returns - SUCCESS (10.37s)
+✓ Step 5 - FAST Optimizer - SUCCESS (4.44s)
+✓ Step 6 - Create Country Alphas - SUCCESS (1.53s)
+✓ Step 7 - Visualize Factor Weights - SUCCESS (1.70s)
+✓ Step 8 - Write Country Weights - SUCCESS (0.89s)
+✓ Step 9 - Calculate Portfolio Returns - SUCCESS (1.54s)
+✓ Step 14 - Target Optimization - SUCCESS (7.71s)
+✓ Step 16 - Factor Market Condition Analysis - SUCCESS (2.99s)
+✓ Step 17 - GMM Regime Analysis - SUCCESS (3.03s)
+✓ Step 18 - Asset Class Charts - SUCCESS (2.98s)
+✓ Step 20 - PORCH Factor Exposure - SUCCESS (2.45s)
+✓ Step 21 - Master Report - SUCCESS (0.75s)
+✓ FINALFINAL - Latest Alphas and Weights - SUCCESS (0.34s)
 
 Generated Files:
 --------------------------------------------------
@@ -41,4 +41,4 @@ Key outputs include:
 - T2_Optimized_Country_Weights.xlsx
 - Various PDF reports and Excel analyses
 
-Detailed log: /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 Factor Timing Fuzzy/pipeline_execution.log
+Detailed log: /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2-GDELT/pipeline_execution.log

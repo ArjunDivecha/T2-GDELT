@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-SCRIPT NAME: Step Three Top20 Portfolios Fast.py  (Soft 15–25 % Linear Band)
+SCRIPT NAME: Step Three GDELT Top20 Portfolios Fast.py  (Soft 15–25 % Linear Band)
 =============================================================================
 
 INPUT FILES:
-- Normalized_T2_MasterCSV.csv  (long format: date, country, variable, value)
+- GDELT_Factors_MasterCSV.csv  (Raw = sheet name; ``_CS``/``_TS`` variants; 1MRet from
+  Normalized_T2_MasterCSV.csv when built by Step Two GDELT Create Tidy.py)
 - Portfolio_Data.xlsx (sheet "Benchmarks": equal-weight benchmark returns)
 
 OUTPUT FILES:
-- T2 Top20.xlsx            # performance table sorted by IR
-- T2 Top20.pdf             # cumulative excess-return charts
-- T2_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
+- GDELT Top20.xlsx            # performance table sorted by IR
+- GDELT Top20.pdf             # cumulative excess-return charts
+- GDELT_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
 
-VERSION: 3.2 – FAST optimized version (identical output to original)
-LAST UPDATED: 2025-12-03
+VERSION: 1.0 – GDELT factor track (parallel to T2 Top20)
+LAST UPDATED: 2026-03-31
 AUTHOR: Claude Code (optimized for speed)
 
 OPTIMIZATIONS:
@@ -330,13 +331,6 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
 
     skip_variables = [
         "1MRet", "3MRet", "6MRet", "9MRet", "12MRet",
-        "120MA_CS", "129MA_TS", "Agriculture_TS", "Agriculture_CS",
-        "Copper_TS", "Copper_CS", "Gold_CS", "Gold_TS",
-        "Oil_CS", "Oil_TS", "MCAP Adj_CS", "MCAP Adj_TS",
-        "MCAP_CS", "MCAP_TS", "PX_LAST_CS", "PX_LAST_TS",
-        "Tot Return Index_CS", "Tot Return Index_TS",
-        "Currency_CS", "Currency_TS", "BEST EPS_CS", "BEST EPS_TS",
-        "Trailing EPS_CS", "Trailing EPS_TS",
     ]
 
     try:
@@ -361,12 +355,12 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
         # Save Excel
         print("\nSaving results...")
         results = results.sort_values("Information Ratio", ascending=False)
-        excel_path = os.path.join(output_dir, "T2 Top20.xlsx")
+        excel_path = os.path.join(output_dir, "GDELT Top20.xlsx")
         results.to_excel(excel_path, index=False, float_format="%.2f")
 
         # Charts
         print("Creating charts...")
-        pdf_path = os.path.join(output_dir, "T2 Top20.pdf")
+        pdf_path = os.path.join(output_dir, "GDELT Top20.pdf")
         create_performance_charts(monthly_returns, benchmark_returns, pdf_path)
 
         # Exposure CSV - keep original logic for exact match
@@ -384,7 +378,7 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
                 exposure_rows.append(row)
 
         exposure_df = pd.DataFrame(exposure_rows, columns=["Date", "Country"] + features)
-        exposure_path = os.path.join(output_dir, "T2_Top_20_Exposure.csv")
+        exposure_path = os.path.join(output_dir, "GDELT_Top_20_Exposure.csv")
         exposure_df.to_csv(exposure_path, index=False)
 
         # ----------------------------------------------------------------
@@ -401,7 +395,7 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
 
 
 if __name__ == "__main__":
-    DATA_PATH = "Normalized_T2_MasterCSV.csv"
+    DATA_PATH = "GDELT_Factors_MasterCSV.csv"
     BENCHMARK_PATH = "Portfolio_Data.xlsx"
-    OUTPUT_DIR = "."  # current directory
+    OUTPUT_DIR = "."
     run_portfolio_analysis(DATA_PATH, BENCHMARK_PATH, OUTPUT_DIR)

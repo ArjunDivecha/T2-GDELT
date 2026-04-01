@@ -3,73 +3,73 @@ Missing country mappings and replacements (mean imputation):
 Data completeness (nonzero count by country):
 
 Optimized Portfolio:
-Singapore: 263
-Australia: 250
-Canada: 245
-Germany: 259
-Japan: 264
-Switzerland: 238
-U.K.: 258
-NASDAQ: 265
-U.S.: 265
-France: 253
-Netherlands: 264
-Sweden: 257
-Italy: 252
-ChinaA: 260
-Chile: 286
-Indonesia: 291
-Philippines: 291
-Poland: 274
-US SmallCap: 273
-Malaysia: 270
-Taiwan: 257
-Mexico: 277
-Korea: 269
-Brazil: 283
-South Africa: 291
-Denmark: 266
-India: 268
-ChinaH: 270
-Hong Kong: 275
-Thailand: 271
-Turkey: 290
-Spain: 233
-Vietnam: 265
-Saudi Arabia: 248
+Singapore: 119
+Australia: 123
+Canada: 123
+Germany: 120
+Japan: 122
+Switzerland: 119
+U.K.: 121
+NASDAQ: 121
+U.S.: 121
+France: 122
+Netherlands: 123
+Sweden: 121
+Italy: 123
+ChinaA: 125
+Chile: 124
+Indonesia: 125
+Philippines: 125
+Poland: 123
+US SmallCap: 121
+Malaysia: 119
+Taiwan: 126
+Mexico: 123
+Korea: 120
+Brazil: 126
+South Africa: 123
+Denmark: 126
+India: 123
+ChinaH: 122
+Hong Kong: 126
+Thailand: 121
+Turkey: 123
+Spain: 124
+Vietnam: 120
+Saudi Arabia: 121
 
 Final Portfolio:
-Singapore: 91
-Australia: 85
-Canada: 79
-Germany: 117
-Japan: 161
-Switzerland: 107
-U.K.: 100
-NASDAQ: 159
-U.S.: 141
-France: 127
-Netherlands: 99
-Sweden: 115
-Italy: 110
-ChinaA: 119
-Chile: 141
-Indonesia: 181
-Philippines: 200
-Poland: 145
-US SmallCap: 112
-Malaysia: 109
-Taiwan: 105
-Mexico: 172
-Korea: 147
-Brazil: 164
-South Africa: 187
-Denmark: 113
-India: 126
-ChinaH: 135
-Hong Kong: 135
-Thailand: 170
-Turkey: 215
-Spain: 90
-Vietnam: 131
-Saudi Arabia: 124
+Singapore: 29
+Australia: 26
+Canada: 26
+Germany: 41
+Japan: 80
+Switzerland: 59
+U.K.: 37
+NASDAQ: 49
+U.S.: 47
+France: 43
+Netherlands: 34
+Sweden: 55
+Italy: 37
+ChinaA: 56
+Chile: 48
+Indonesia: 49
+Philippines: 69
+Poland: 46
+US SmallCap: 37
+Malaysia: 56
+Taiwan: 36
+Mexico: 60
+Korea: 55
+Brazil: 63
+South Africa: 48
+Denmark: 45
+India: 33
+ChinaH: 52
+Hong Kong: 48
+Thailand: 71
+Turkey: 98
+Spain: 50
+Vietnam: 29
+Saudi Arabia: 46

@@ -46,6 +46,12 @@ OUTPUT FILES:
      * Compatible with visualization tools
      * Efficient storage of sparse data
 
+GDELT ANALYSIS WINDOW (after normalization):
+  Rows are clipped to the monthly range defined in ``GDELT.xlsx`` (sheet
+  ``monthly_metronome``): from the first month with any GDELT country data
+  (September 2015 in the current file) through the last date in that sheet.
+  See ``T2_GDELT_analysis_window.py``.
+
 NORMALIZATION METHODOLOGY:
 1. Cross-Sectional (CS) Normalization:
    - For each date, across all countries:
@@ -82,12 +88,13 @@ SPECIAL HANDLING:
    - Logged for diagnostics
 
 VERSION HISTORY:
+- 2.1 (2026-03-31): After normalization, clip all outputs to GDELT monthly window (T2_GDELT_analysis_window.py)
 - 2.0 (2025-05-15): Complete rewrite with improved error handling
 - 1.5 (2025-03-22): Added support for inverted variables
 - 1.0 (2025-02-10): Initial production version
 
 AUTHOR: Financial Data Processing Team
-LAST UPDATED: 2025-06-17
+LAST UPDATED: 2026-03-31
 
 NOTES:
 - All normalizations use N-1 degrees of freedom for std dev (pandas default)
@@ -107,6 +114,11 @@ import pandas as pd
 from pathlib import Path
 from typing import List
 import numpy as np
+
+from T2_GDELT_analysis_window import (
+    clip_monthly_index_frame,
+    get_gdelt_analysis_window,
+)
 
 def _truncate_sheet_name(name: str, max_length: int = 31) -> str:
     """
@@ -185,6 +197,12 @@ def normalize_data() -> None:
         
         # Initialize list to store all tidy data
         all_tidy_data = []
+
+        win_start, win_end = get_gdelt_analysis_window()
+        print(
+            f"GDELT analysis window (applied to outputs): "
+            f"{win_start.date()} .. {win_end.date()}"
+        )
         
         with pd.ExcelWriter(excel_output, engine='xlsxwriter') as writer:
             for sheet_name in xls.sheet_names:
@@ -238,6 +256,7 @@ def normalize_data() -> None:
                 
                 # Write all variants to Excel and prepare tidy DataFrames
                 for variant_type, variant_df in variants.items():
+                    variant_df = clip_monthly_index_frame(variant_df, win_start, win_end)
                     # Create sheet name with variant suffix (except for original return variables)
                     if sheet_name in copy_direct:
                         safe_sheet_name = _truncate_sheet_name(sheet_name)

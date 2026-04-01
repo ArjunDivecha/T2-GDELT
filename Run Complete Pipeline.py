@@ -3,6 +3,7 @@
 T2 Factor Timing Complete Pipeline Runner
 
 INPUT FILES:
+- GDELT.xlsx (required: defines the single monthly analysis window for the full run)
 - AssetList.xlsx (required, for Step 0)
 - Raw Bloomberg data files (for Step 1)
 - Step Factor Categories.xlsx (for Step 5 and other steps)
@@ -16,8 +17,8 @@ PURPOSE:
 This script runs the complete T2 Factor Timing pipeline in the correct sequence,
 with error handling, progress tracking, and comprehensive logging.
 
-VERSION: 1.0
-LAST UPDATED: 2025-11-21
+VERSION: 1.1
+LAST UPDATED: 2026-03-31
 """
 
 import os
@@ -172,7 +173,8 @@ class PipelineRunner:
         
         # Check for essential files
         essential_files = [
-            "Step Factor Categories.xlsx"
+            "Step Factor Categories.xlsx",
+            "GDELT.xlsx",  # defines analysis date range (T2_GDELT_analysis_window.py)
         ]
         
         missing_files = []
@@ -296,6 +298,26 @@ class PipelineRunner:
         self.logger.info(f"Base directory: {self.base_dir}")
         self.logger.info(f"Total steps: {len(self.pipeline_steps)}")
         self.logger.info("=" * 80)
+
+        # Single analysis period for the whole run (from GDELT.xlsx)
+        gdelt_path = self.base_dir / "GDELT.xlsx"
+        try:
+            if str(self.base_dir) not in sys.path:
+                sys.path.insert(0, str(self.base_dir))
+            from T2_GDELT_analysis_window import get_gdelt_analysis_window
+
+            _s, _e = get_gdelt_analysis_window(gdelt_path=str(gdelt_path))
+            self.logger.info(
+                "Pipeline analysis window (GDELT-aligned): %s to %s",
+                _s.strftime("%Y-%m-%d"),
+                _e.strftime("%Y-%m-%d"),
+            )
+        except Exception as ex:
+            self.logger.warning(
+                "Could not load GDELT analysis window from %s: %s",
+                gdelt_path,
+                ex,
+            )
         
         # Check prerequisites
         if not self.check_prerequisites():

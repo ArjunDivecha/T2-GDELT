@@ -285,9 +285,9 @@ def format_grid(grid: pd.DataFrame, is_return: bool = True) -> pd.DataFrame:
     - Formatted DataFrame with nice string formatting for terminal display
     """
     if is_return:
-        return grid.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "N/A")
+        return grid.map(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "N/A")
     else:
-        return grid.applymap(lambda x: f"{x:.2f}" if pd.notnull(x) else "N/A")
+        return grid.map(lambda x: f"{x:.2f}" if pd.notnull(x) else "N/A")
 
 def create_cumulative_returns_plot(excel_path: str, lookback: int, allowed_factors: list, output_path: str = "outputs/visualizations/decile_cumulative_returns_60m.pdf"):
     """

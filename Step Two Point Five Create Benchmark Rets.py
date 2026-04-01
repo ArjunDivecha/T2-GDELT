@@ -23,6 +23,10 @@
 #   - Sheet 'Weights': Processed market cap weights
 #   - Sheet 'Benchmarks': Calculated benchmark returns (equal-weight, market-cap weight, US market)
 #
+# DATE RANGE:
+#   Returns and weights are clipped to the same monthly window as GDELT.xlsx
+#   (see T2_GDELT_analysis_window.py — typically Sep 2015 through the last GDELT month).
+#
 # MISSING DATA HANDLING:
 # - If the last row contains NaN values (most recent date with incomplete data), 
 #   it's handled separately and NaN values are preserved in the output
@@ -42,6 +46,8 @@ import numpy as np
 from typing import Tuple, Dict
 from pathlib import Path
 import sys
+
+from T2_GDELT_analysis_window import clip_monthly_index_frame, get_gdelt_analysis_window
 
 def read_data(file_path: str = 'T2 Master.xlsx', return_sheet: str = '1MRet') -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -265,6 +271,13 @@ def main():
         
         # Process data
         returns, weights = read_data(input_file)
+        win_start, win_end = get_gdelt_analysis_window()
+        print(
+            f"Clipping returns/weights to GDELT analysis window: "
+            f"{win_start.date()} .. {win_end.date()}"
+        )
+        returns = clip_monthly_index_frame(returns, win_start, win_end)
+        weights = clip_monthly_index_frame(weights, win_start, win_end)
         benchmarks = prepare_benchmark_data(returns, weights)
         save_data(returns, weights, benchmarks, output_file)
         

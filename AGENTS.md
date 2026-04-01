@@ -102,3 +102,18 @@ Target Optimization → Market Regime Analysis
 - Outlier detection uses ±3σ rolling windows with winsorization
 - Market cap data receives special handling to preserve large-cap influence
 - All processing steps include comprehensive error handling and validation
+
+## Learned User Preferences
+
+- Align GDELT month-end dates to the same reporting convention as other T2 files (e.g. a calendar month-end such as 2/28/2026 is stored as the matching first-of-following-month style such as 3/1/2026 used elsewhere in the pipeline).
+- Keep the full pipeline restricted to the GDELT-aligned sample window once dates are aligned (do not silently extend analysis beyond that period).
+- For the GDELT factor-category workbook, include all listed factors, including z-scored variants.
+- Sign-flip “risk” category variables so their direction matches the intended economic interpretation alongside other factor groups.
+
+## Learned Workspace Facts
+
+- A parallel GDELT branch exists alongside the classic T2 Master path: factors come from `GDELT.xlsx` (and derived tidy outputs); country returns and other return fields still come from T2 Master / existing market inputs, not from GDELT.
+- GDELT factors are maintained in three variants per variable: raw, cross-sectional (CS), and time-series (TS).
+- The user-aligned analysis start for GDELT-wide work is 2015-09-01 (end date follows GDELT coverage after date harmonization).
+- `Step Factor Categories GDELT.xlsx` is the GDELT counterpart to `Step Factor Categories.xlsx` for caps, groupings, and factor lists.
+- When raw Top20 or portfolio outputs disagree between the archived `Archive/Step Three GDELT.py` and `Step Three GDELT Top20 Portfolios Fast.py`, treat Step Two GDELT tidy/normalization as a primary place to reconcile definitions before changing Step Three.

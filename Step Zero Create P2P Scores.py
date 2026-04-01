@@ -6,8 +6,8 @@
 # It calculates P2P scores based on price trends and generates historical P2P scores
 # for use in other parts of the Country Factor Momentum Strategy pipeline.
 #
-# VERSION: 1.1
-# LAST UPDATED: 2025-05-28
+# VERSION: 1.2
+# LAST UPDATED: 2026-03-31
 #
 # INPUT FILES:
 # - AssetList.xlsx
@@ -20,6 +20,7 @@
 #   Location: /Users/macbook2024/Library/CloudStorage/Dropbox/AAA Backup/A Complete/T2 Factor Timing/P2P_Country_Historical_Scores.xlsx
 #   Description: Historical P2P scores for all countries over time
 #   Format: Excel file with dates and scores by country
+#   Rows are clipped to the GDELT analysis window (see T2_GDELT_analysis_window.py)
 #
 # MISSING DATA HANDLING:
 # - For countries with missing price data, they are excluded from that month's calculation
@@ -35,6 +36,8 @@ from dateutil.relativedelta import relativedelta
 import warnings
 import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
+
+from T2_GDELT_analysis_window import clip_long_format_dates, get_gdelt_analysis_window
 
 ###############################################################################
 # CORE CALCULATION FUNCTIONS
@@ -449,6 +452,19 @@ print(format_current_signals(details_df, as_of_date))
 
 # Calculate historical P2P scores
 historical_p2p_scores = save_historical_p2p_scores(all_prices, tickers)
+
+# Match T2 / GDELT pipeline: keep only the GDELT analysis period on disk
+_gw_s, _gw_e = get_gdelt_analysis_window()
+_date_col = historical_p2p_scores.columns[0]
+historical_p2p_scores = clip_long_format_dates(
+    historical_p2p_scores.rename(columns={_date_col: "date"}),
+    _gw_s,
+    _gw_e,
+    date_col="date",
+).rename(columns={"date": _date_col})
+print(
+    f"Clipped P2P historical rows to GDELT window: {_gw_s.date()} .. {_gw_e.date()}"
+)
 
 # Save only the historical P2P scores file
 historical_file = 'P2P_Country_Historical_Scores.xlsx'

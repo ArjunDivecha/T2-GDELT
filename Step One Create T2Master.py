@@ -60,15 +60,18 @@ DATA PROCESSING PIPELINE:
    - Apply consistent formatting
    - Validate output data quality
    - Generate comprehensive logs
+   - After the workbook is written, trim all sheets to the GDELT analysis window
+     (see ``T2_GDELT_analysis_window.py``) so a full pipeline run uses only that period.
 
 VERSION HISTORY:
+- 2.2 (2026-03-31): Clip T2 Master.xlsx to GDELT monthly window after build
 - 2.1 (2025-06-15): Enhanced error handling and logging
 - 2.0 (2025-05-20): Complete rewrite with type safety and performance improvements
 - 1.5 (2025-04-10): Added P2P score integration
 - 1.0 (2025-01-15): Initial production version
 
 AUTHOR: Financial Data Processing Team
-LAST UPDATED: 2025-06-17
+LAST UPDATED: 2026-03-31
 
 NOTES:
 - All percentage values are properly scaled (0.01 = 1%)
@@ -91,6 +94,8 @@ from scipy import stats
 import os
 import logging
 from datetime import datetime
+
+from T2_GDELT_analysis_window import clip_t2_master_excel, get_gdelt_analysis_window
 
 # Configure logging to both file and console
 log_dir = os.path.dirname(os.path.abspath(__file__))
@@ -792,6 +797,15 @@ def process_excel_file() -> None:
             p2p_data.to_excel(writer, sheet_name='P2P', index=False)
             logger.info("P2P data processed and updated successfully")
         
+        # Trim entire workbook to GDELT analysis window (pipeline uses one period only)
+        win_start, win_end = get_gdelt_analysis_window()
+        logger.info(
+            "Clipping T2 Master.xlsx to GDELT window: %s .. %s",
+            win_start.date(),
+            win_end.date(),
+        )
+        clip_t2_master_excel(output_file, win_start, win_end)
+
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
         logger.info(f"Financial data processing completed in {processing_time:.2f} seconds")
