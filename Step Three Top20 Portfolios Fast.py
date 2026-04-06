@@ -14,11 +14,8 @@ OUTPUT FILES:
 - T2_Top_20_Exposure.csv         # sort-based: monthly country weights
 - T2 Top20 Regression.xlsx       # univariate OLS: performance table sorted by Sharpe
 - T2 Top20 Regression.pdf        # univariate OLS: cumulative factor return charts
-- T2 Top20 LASSO.xlsx            # multivariate LASSO: performance table sorted by Sharpe
-- T2 Top20 LASSO.pdf             # multivariate LASSO: cumulative factor return charts
-- T2 Top20 LASSO Combined.pdf   # overlay: LASSO vs sort-based on dual y-axes
 
-VERSION: 3.5 – added multivariate LASSO regression
+VERSION: 3.6 – removed LASSO; kept sort-based + univariate OLS
 LAST UPDATED: 2026-04-06
 AUTHOR: Claude Code (optimized for speed)
 
@@ -53,9 +50,7 @@ import pandas as pd
 
 from step_three_regression_utils import (
     analyze_portfolios_regression,
-    analyze_portfolios_lasso,
     create_regression_charts,
-    create_combined_charts,
 )
 
 # ------------------------------------------------------------------
@@ -427,41 +422,12 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
         create_regression_charts(monthly_betas, reg_pdf_path)
 
         # ----------------------------------------------------------------
-        # Multivariate LASSO factor returns
-        # ----------------------------------------------------------------
-        print("\nRunning multivariate LASSO regression (LassoCV)...")
-        lasso_betas, lasso_results, lasso_alphas = analyze_portfolios_lasso(
-            data, features, benchmark_returns
-        )
-
-        lasso_results = lasso_results.sort_values("Sharpe Ratio", ascending=False)
-        lasso_excel_path = os.path.join(output_dir, "T2 Top20 LASSO.xlsx")
-        lasso_results.to_excel(lasso_excel_path, index=False, float_format="%.2f")
-
-        lasso_pdf_path = os.path.join(output_dir, "T2 Top20 LASSO.pdf")
-        print("Creating LASSO charts...")
-        create_regression_charts(lasso_betas, lasso_pdf_path)
-
-        # Combined overlay: LASSO vs sort-based
-        sort_excess = {f: monthly_returns[f] - benchmark_returns for f in features}
-        lasso_combined_path = os.path.join(output_dir, "T2 Top20 LASSO Combined.pdf")
-        print("Creating LASSO vs Sort-based combined charts...")
-        create_combined_charts(
-            sort_excess, lasso_betas,
-            "Sort-based", "LASSO",
-            lasso_combined_path,
-        )
-
-        # ----------------------------------------------------------------
         print("\nAnalysis complete!")
         print(f"Results  → {excel_path}")
         print(f"Charts   → {pdf_path}")
         print(f"Exposure → {exposure_path}")
         print(f"Regression Results → {reg_excel_path}")
         print(f"Regression Charts  → {reg_pdf_path}")
-        print(f"LASSO Results      → {lasso_excel_path}")
-        print(f"LASSO Charts       → {lasso_pdf_path}")
-        print(f"LASSO Combined     → {lasso_combined_path}")
 
     except Exception as err:
         import traceback

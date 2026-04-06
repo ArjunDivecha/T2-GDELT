@@ -47,8 +47,22 @@ from typing import List
 import numpy as np
 import pandas as pd
 
-from gdelt_country_map import map_country_label
 from T2_GDELT_analysis_window import clip_long_format_dates, get_gdelt_analysis_window
+
+# GDELT workbook column labels → T2 Master / Normalized CSV country codes.
+GDELT_TO_T2_COUNTRY = {
+    "U.S. NASDAQ": "NASDAQ",
+    "China A": "ChinaA",
+    "China H": "ChinaH",
+}
+
+
+def map_country_label(label: object) -> str:
+    """Map GDELT country names to T2 Master conventions where they differ."""
+    if label is None or (isinstance(label, float) and str(label) == "nan"):
+        return ""
+    s = str(label).strip()
+    return GDELT_TO_T2_COUNTRY.get(s, s)
 
 # Documentation-only sheets in GDELT.xlsx (not wide date × country panels).
 GDELT_SKIP_SHEETS = frozenset({"README", "README_VARIABLES"})

@@ -110,7 +110,7 @@ Target Optimization → Market Regime Analysis
 - For the GDELT factor-category workbook, include all listed factors, including z-scored variants.
 - Sign-flip “risk” category variables so their direction matches the intended economic interpretation alongside other factor groups.
 - Classic T2 `Step Three Top20 Portfolios Fast.py` regression support (`step_three_regression_utils.py`) uses **simple monthly cross-sectional regression** (one OLS per factor per month), **not** Fama-MacBeth; regress **country excess returns** (1M return minus the equal-weight benchmark) on factor scores, and treat the monthly slope series as the factor return in charts and summaries—do **not** subtract the benchmark again from those slopes.
-- Overlays named **LASSO** in Step Three outputs use **`ElasticNetCV`** (multivariate, partial coefficients with shrinkage), not the univariate OLS series; do not treat that line as the single-factor regression when comparing to sort-based returns.
+- LASSO / ElasticNet overlay was removed from Step Three (2026-04-06); only sort-based and univariate OLS regression remain.
 
 ## Learned Workspace Facts
 
