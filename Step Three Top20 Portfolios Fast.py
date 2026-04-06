@@ -9,13 +9,25 @@ INPUT FILES:
 - Portfolio_Data.xlsx (sheet "Benchmarks": equal-weight benchmark returns)
 
 OUTPUT FILES:
-- T2 Top20.xlsx            # performance table sorted by IR
-- T2 Top20.pdf             # cumulative excess-return charts
-- T2_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
+- T2 Top20.xlsx                  # sort-based: performance table sorted by IR
+- T2 Top20.pdf                   # sort-based: cumulative excess-return charts
+- T2_Top_20_Exposure.csv         # sort-based: monthly country weights
+- T2 Top20 Regression.xlsx       # regression-based: performance table sorted by IR
+- T2 Top20 Regression.pdf        # regression-based: cumulative beta charts
 
-VERSION: 3.2 – FAST optimized version (identical output to original)
-LAST UPDATED: 2025-12-03
+VERSION: 3.3 – added cross-sectional regression factor returns
+LAST UPDATED: 2026-04-06
 AUTHOR: Claude Code (optimized for speed)
+
+HOW FACTOR RETURNS ARE FORMED (REGRESSION METHOD):
+  Each month, for each factor, we run a univariate OLS regression:
+      1MRet(country) = alpha + beta * factor_score(country) + error
+  across all countries that have both a valid factor score and a valid return.
+  The slope coefficient (beta) is the factor's return for that month.
+  A positive beta means that countries with higher factor scores tended to
+  earn higher returns that month — i.e., the factor "worked."
+  We collect one beta per month per factor to form a time series, then
+  evaluate it using the same performance metrics as the sort-based approach.
 
 OPTIMIZATIONS:
 - Pre-indexed data lookups using dictionaries instead of repeated DataFrame filtering
@@ -35,6 +47,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
+
+from step_three_regression_utils import (
+    analyze_portfolios_regression,
+    create_regression_charts,
+)
 
 # ------------------------------------------------------------------
 # Configuration
@@ -388,10 +405,29 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
         exposure_df.to_csv(exposure_path, index=False)
 
         # ----------------------------------------------------------------
+        # Regression-based factor returns
+        # ----------------------------------------------------------------
+        print("\nRunning cross-sectional regression analysis...")
+        print(f"Analyzing {len(features)} features via monthly OLS (beta = factor return)...")
+        monthly_betas, reg_results = analyze_portfolios_regression(
+            data, features, benchmark_returns, calculate_performance_metrics
+        )
+
+        reg_results = reg_results.sort_values("Information Ratio", ascending=False)
+        reg_excel_path = os.path.join(output_dir, "T2 Top20 Regression.xlsx")
+        reg_results.to_excel(reg_excel_path, index=False, float_format="%.2f")
+
+        reg_pdf_path = os.path.join(output_dir, "T2 Top20 Regression.pdf")
+        print("Creating regression charts...")
+        create_regression_charts(monthly_betas, benchmark_returns, reg_pdf_path)
+
+        # ----------------------------------------------------------------
         print("\nAnalysis complete!")
         print(f"Results  → {excel_path}")
         print(f"Charts   → {pdf_path}")
         print(f"Exposure → {exposure_path}")
+        print(f"Regression Results → {reg_excel_path}")
+        print(f"Regression Charts  → {reg_pdf_path}")
 
     except Exception as err:
         import traceback
