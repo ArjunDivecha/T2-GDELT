@@ -5,6 +5,9 @@ SCRIPT NAME: Step Five FAST.py - High-Performance Portfolio Optimization
 
 INPUT FILES:
 - T2_Optimizer.xlsx: Monthly factor returns from Step Four
+- T2_RSQ.xlsx (sheet Monthly_RSQ, optional): Per-factor R² on 12-month cumulative net returns,
+  same layout as GDELT_RSQ.xlsx. When USE_RSQ_MODIFIER is True, each month’s μ is scaled
+  factor-by-factor (see RSQ_INFLUENCE / RSQ_MISSING_MULTIPLIER in script).
 - Step Factor Categories.xlsx: Factor categories and maximum weight constraints
 
 OUTPUT FILES:
@@ -13,8 +16,8 @@ OUTPUT FILES:
 - T2_factor_weight_heatmap.pdf: Heatmap visualization of factor weights over time
 - T2_strategy_performance.pdf: Cumulative performance visualization
 
-VERSION: 2.0 - High Performance CVXPY Implementation
-LAST UPDATED: 2025-06-17
+VERSION: 2.1 - High Performance CVXPY Implementation (+ optional T2 RSQ μ modifier)
+LAST UPDATED: 2026-04-06
 AUTHOR: Claude Code
 
 DESCRIPTION:
@@ -41,6 +44,9 @@ USAGE:
 python "Step Five FAST.py"
 
 NOTES:
+- Rows in T2_Optimizer.xlsx that are all-NaN are dropped before optimization (stub months).
+- With USE_RSQ_MODIFIER True, μ = (8 × window mean) × m with m from T2_RSQ.xlsx (same rules as
+  Step Five GDELT FAST). Default USE_RSQ_MODIFIER False until T2_RSQ.xlsx exists.
 - Uses CVXPY with OSQP solver for fast convex optimization
 - Warm-start capabilities for 2-3x additional speedup
 - Eliminates expanding window analysis (focus on hybrid only)
@@ -48,6 +54,8 @@ NOTES:
 - Maintains identical output format to original Step Five
 =============================================================================
 """
+
+import os
 
 import pandas as pd
 import numpy as np
@@ -63,6 +71,8 @@ import logging
 import time
 import warnings
 
+from step_five_multiwindow_stats import log_step_five_multiwindow_table
+
 warnings.filterwarnings('ignore')
 plt.style.use('default')
 
@@ -73,7 +83,13 @@ plt.style.use('default')
 # Portfolio optimization parameters
 LAMBDA = 0.0              # Risk aversion parameter (higher = more risk-averse)
 HHI_PENALTY = 0.005         # Concentration penalty (higher = more diversified)
-WINDOW_SIZE = 60           # Rolling window size in months
+WINDOW_SIZE = 12           # Rolling window size in months
+# RSQ modifier (T2_RSQ.xlsx, same Monthly_RSQ layout as GDELT_RSQ.xlsx)
+USE_RSQ_MODIFIER = True
+RSQ_PATH = "T2_RSQ.xlsx"
+RSQ_SHEET_NAME = "Monthly_RSQ"
+RSQ_MISSING_MULTIPLIER = 1.0
+RSQ_INFLUENCE = 1.0  # 0 = no RSQ effect, 1 = full μ × RSQ (after fill)
 # EMA_DECAY removed - using simple arithmetic mean like original Step Five
 # =============================================================================
 # SETUP LOGGING
@@ -145,10 +161,14 @@ class FastPortfolioOptimizer:
         Returns:
             np.array of optimal weights
         """
+        P = np.asarray(covariance_matrix, dtype=np.float64)
+        P = (P + P.T) * 0.5
+        mu = np.asarray(expected_returns, dtype=np.float64).ravel()
+
         # Convert utility function to quadratic form:
         # Maximize: w'μ - λ*w'Σw - γ*||w||²
-        portfolio_return = self.weights_var.T @ expected_returns
-        risk_penalty = self.lambda_param * cp.quad_form(self.weights_var, covariance_matrix)
+        portfolio_return = self.weights_var.T @ mu
+        risk_penalty = self.lambda_param * cp.quad_form(self.weights_var, P)
         concentration_penalty = self.hhi_penalty * cp.sum_squares(self.weights_var)
         
         # Objective: maximize utility (minimize negative utility)
@@ -197,18 +217,112 @@ def load_and_prepare_data():
     factor_categories = pd.read_excel('Step Factor Categories.xlsx')
     max_weights = dict(zip(factor_categories['Factor Name'], factor_categories['Max']))
     
-    # Convert to decimals if needed
-    if returns.abs().mean().mean() > 1:
-        returns = returns / 100
+    # Step Four writes monthly net returns as percentage points (decimal × 100).
+    # Always convert to decimals; mean>1 heuristic breaks when typical |r| stays below 1.
+    returns = returns.apply(pd.to_numeric, errors="coerce") / 100.0
     
     # Remove Monthly Return_CS if present
     if 'Monthly Return_CS' in returns.columns:
         returns = returns.drop(columns=['Monthly Return_CS'])
-    
+
+    all_nan_rows = returns.isna().all(axis=1)
+    if all_nan_rows.any():
+        n_bad = int(all_nan_rows.sum())
+        bad_dates = returns.index[all_nan_rows].strftime("%Y-%m").tolist()
+        logging.warning(
+            "Dropping %d month(s) with all-NaN factor returns: %s",
+            n_bad,
+            bad_dates[:5] + (["..."] if len(bad_dates) > 5 else []),
+        )
+        returns = returns.loc[~all_nan_rows]
+
     logging.info(f"Loaded returns data: {returns.shape[0]} periods, {returns.shape[1]} factors")
     logging.info(f"Loaded max weight constraints for {len(max_weights)} factors")
-    
+    n_f, n_t = returns.shape[1], returns.shape[0]
+    if n_f > n_t:
+        logging.warning(
+            "More factors (%d) than time periods (%d): covariance is rank-deficient.",
+            n_f,
+            n_t,
+        )
+    if n_f > WINDOW_SIZE:
+        logging.warning(
+            "Factor count (%d) > WINDOW_SIZE (%d): rolling covariance is under-identified; "
+            "Sharpe/return can look implausibly high.",
+            n_f,
+            WINDOW_SIZE,
+        )
+
     return returns, max_weights
+
+
+def load_rsq_modifier_frame(returns_df: pd.DataFrame) -> pd.DataFrame:
+    """Load T2_RSQ.xlsx; align index/columns to returns_df."""
+    if not USE_RSQ_MODIFIER:
+        return pd.DataFrame()
+
+    if not os.path.isfile(RSQ_PATH):
+        raise FileNotFoundError(
+            f"USE_RSQ_MODIFIER is True but {RSQ_PATH!r} was not found. "
+            "Create it (same layout as GDELT_RSQ.xlsx Monthly_RSQ) or set USE_RSQ_MODIFIER = False."
+        )
+
+    rsq = pd.read_excel(RSQ_PATH, sheet_name=RSQ_SHEET_NAME, index_col=0)
+    rsq.index = pd.to_datetime(rsq.index, errors="coerce").to_period("M").to_timestamp()
+    rsq = rsq.apply(pd.to_numeric, errors="coerce")
+
+    want_cols = list(returns_df.columns)
+    missing = [c for c in want_cols if c not in rsq.columns]
+    if missing:
+        logging.warning(
+            "RSQ file missing %d factor column(s); those use multiplier %.4f. Examples: %s",
+            len(missing),
+            RSQ_MISSING_MULTIPLIER,
+            missing[:5],
+        )
+    rsq = rsq.reindex(columns=want_cols)
+    return rsq
+
+
+def rsq_multiplier_vector(
+    rsq_df: pd.DataFrame,
+    date: pd.Timestamp,
+    factor_names: list,
+    fallback_date: pd.Timestamp | None = None,
+) -> pd.Series:
+    if rsq_df.empty:
+        return pd.Series(RSQ_MISSING_MULTIPLIER, index=factor_names, dtype=float)
+
+    def _row_for(d: pd.Timestamp | None) -> pd.Series | None:
+        if d is None or d not in rsq_df.index:
+            return None
+        return rsq_df.loc[d].reindex(factor_names)
+
+    r = _row_for(date)
+    if r is None and fallback_date is not None:
+        r = _row_for(fallback_date)
+    if r is None:
+        r = pd.Series(np.nan, index=factor_names, dtype=float)
+    filled = r.fillna(RSQ_MISSING_MULTIPLIER).astype(float)
+    base = float(RSQ_MISSING_MULTIPLIER)
+    effective = base + float(RSQ_INFLUENCE) * (filled - base)
+    effective = np.maximum(effective.to_numpy(dtype=float), 0.0)
+    return pd.Series(effective, index=factor_names, dtype=float)
+
+
+def apply_rsq_to_expected_returns(
+    expected_returns: pd.Series | np.ndarray,
+    mult: pd.Series,
+    factor_names: list,
+) -> pd.Series:
+    s = (
+        expected_returns
+        if isinstance(expected_returns, pd.Series)
+        else pd.Series(np.asarray(expected_returns, dtype=float).ravel(), index=factor_names)
+    )
+    m = mult.reindex(s.index).fillna(RSQ_MISSING_MULTIPLIER)
+    return (s * m).astype(float)
+
 
 def calculate_rolling_statistics(returns_df, window_size):
     """
@@ -286,10 +400,24 @@ def run_fast_optimization():
     expected_returns_dict, covariance_dict, optimization_dates = calculate_rolling_statistics(
         returns_df, WINDOW_SIZE
     )
-    
+
+    factor_names = list(returns_df.columns)
+    rsq_df = load_rsq_modifier_frame(returns_df)
+    if USE_RSQ_MODIFIER and not rsq_df.empty:
+        logging.info(
+            "Applying %s RSQ multipliers: RSQ_INFLUENCE=%.4f, missing → %.4f.",
+            RSQ_PATH,
+            RSQ_INFLUENCE,
+            RSQ_MISSING_MULTIPLIER,
+        )
+        for date in optimization_dates:
+            mult = rsq_multiplier_vector(rsq_df, date, factor_names)
+            expected_returns_dict[date] = apply_rsq_to_expected_returns(
+                expected_returns_dict[date], mult, factor_names
+            )
+
     # Initialize fast optimizer
     n_assets = len(returns_df.columns)
-    factor_names = list(returns_df.columns)
     
     optimizer = FastPortfolioOptimizer(
         n_assets=n_assets,
@@ -346,7 +474,17 @@ def run_fast_optimization():
     # Calculate expected returns and covariance for extra month
     factor_means = extra_month_data.mean(axis=0)
     expected_returns_extra = 8 * factor_means  # Apply 8x scaling factor
-    
+    if USE_RSQ_MODIFIER and not rsq_df.empty:
+        mult_x = rsq_multiplier_vector(
+            rsq_df,
+            next_month_date,
+            factor_names,
+            fallback_date=returns_df.index[-1],
+        )
+        expected_returns_extra = apply_rsq_to_expected_returns(
+            expected_returns_extra, mult_x, factor_names
+        )
+
     # Covariance matrix (annualized)
     cov_matrix_extra = np.cov(extra_month_data.values.T, ddof=0) * 12
     
@@ -781,14 +919,15 @@ def main():
         # Save results
         save_results(weights_df, performance_results)
         
-        # Display summary
+        # Display summary (full period + rolling 12m / 3y / 5y windows)
         logging.info("="*80)
-        logging.info("OPTIMIZATION RESULTS SUMMARY")
+        logging.info("OPTIMIZATION RESULTS SUMMARY (multi-window)")
         logging.info("="*80)
-        
-        for metric, value in performance_results['statistics'].items():
-            logging.info(f"{metric:30s}: {value:8.2f}")
-        
+        log_step_five_multiwindow_table(
+            performance_results["monthly_returns"],
+            performance_results["monthly_turnover"],
+            logging.info,
+        )
         logging.info("="*80)
         logging.info("STEP FIVE FAST COMPLETED SUCCESSFULLY")
         logging.info("="*80)

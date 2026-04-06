@@ -4,7 +4,9 @@ SCRIPT NAME: Step Two GDELT Create Tidy.py
 =============================================================================
 
 INPUT FILES:
-- GDELT.xlsx — all data sheets (README skipped); wide monthly panel, dates column A.
+- GDELT.xlsx — all data sheets; **README** and **README_VARIABLES** (documentation for
+  the first sheet / column meanings) are skipped. Each remaining sheet is a wide
+  monthly panel with dates in column A.
 - T2 Master.xlsx — sheet **1MRet** only (monthly country returns; GDELT has no returns).
 - Step Factor Categories.xlsx — sheet **Asset Class** copied into the GDELT categories file.
 
@@ -16,8 +18,8 @@ OUTPUT FILES:
 - Step Factor Categories GDELT.xlsx — sheets **Factor Categories** (one row per GDELT
   factor variant + Max weight) and **Asset Class** (same as T2).
 
-VERSION: 1.2
-LAST UPDATED: 2026-03-31
+VERSION: 1.3
+LAST UPDATED: 2026-04-03
 
 DESCRIPTION:
 Builds Raw / cross-sectional (CS) / time-series (TS) variants for every GDELT sheet
@@ -48,7 +50,8 @@ import pandas as pd
 from gdelt_country_map import map_country_label
 from T2_GDELT_analysis_window import clip_long_format_dates, get_gdelt_analysis_window
 
-README_SHEET = "README"
+# Documentation-only sheets in GDELT.xlsx (not wide date × country panels).
+GDELT_SKIP_SHEETS = frozenset({"README", "README_VARIABLES"})
 GDELT_PATH = "GDELT.xlsx"
 T2_MASTER_PATH = "T2 Master.xlsx"
 T2_CATEGORIES_PATH = "Step Factor Categories.xlsx"
@@ -198,7 +201,7 @@ def main() -> None:
         raise FileNotFoundError(GDELT_PATH)
 
     xl = pd.ExcelFile(GDELT_PATH, engine="openpyxl")
-    data_sheet_names = [s for s in xl.sheet_names if s != README_SHEET]
+    data_sheet_names = [s for s in xl.sheet_names if s not in GDELT_SKIP_SHEETS]
 
     all_parts: List[pd.DataFrame] = []
     sheets_loaded: List[str] = []

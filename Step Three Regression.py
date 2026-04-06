@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-SCRIPT NAME: Step Three GDELT Top20 Portfolios Fast.py  (Soft 15–25 % Linear Band)
+SCRIPT NAME: Step Three Top20 Portfolios Fast.py  (Soft 15–25 % Linear Band)
 =============================================================================
 
 INPUT FILES:
-- GDELT_Factors_MasterCSV.csv  (Raw = sheet name; ``_CS``/``_TS`` variants; 1MRet from
-  Normalized_T2_MasterCSV.csv when built by Step Two GDELT Create Tidy.py)
+- Normalized_T2_MasterCSV.csv  (long format: date, country, variable, value)
 - Portfolio_Data.xlsx (sheet "Benchmarks": equal-weight benchmark returns)
 
 OUTPUT FILES:
-- GDELT Top20.xlsx            # performance tables sorted by IR:
-                              #   sheet Full_Sample = full history (same as before)
-                              #   sheets Trailing_1Y / Trailing_3Y / Trailing_5Y = last 12 / 36 / 60
-                              #   benchmark months (same columns as Full_Sample)
-- GDELT Top20.pdf             # cumulative excess-return charts
-- GDELT_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
+- T2 Top20.xlsx            # performance table sorted by IR
+- T2 Top20.pdf             # cumulative excess-return charts
+- T2_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
 
-VERSION: 1.1 – GDELT factor track (parallel to T2 Top20)
-LAST UPDATED: 2026-04-06
+VERSION: 3.2 – FAST optimized version (identical output to original)
+LAST UPDATED: 2025-12-03
 AUTHOR: Claude Code (optimized for speed)
 
 OPTIMIZATIONS:
@@ -287,63 +283,6 @@ def calculate_turnover(holdings_df: pd.DataFrame) -> float:
     return round(diffs.iloc[1:].mean() * 100, 2)  # exclude first NaN row
 
 
-# Trailing windows: (sheet_name, months) using the benchmark’s month-end index
-TRAILING_YEAR_WINDOWS = (
-    ("Trailing_1Y", 12),
-    ("Trailing_3Y", 36),
-    ("Trailing_5Y", 60),
-)
-
-
-def build_trailing_results_table(
-    monthly_returns: Dict[str, pd.Series],
-    monthly_holdings: Dict[str, pd.DataFrame],
-    benchmark_returns: pd.Series,
-    features: list,
-    n_trailing_months: int,
-) -> pd.DataFrame:
-    """
-    Same performance columns as the full-sample table, but only the last
-    ``n_trailing_months`` dates on the benchmark calendar (monthly index).
-    """
-    monthly_index = benchmark_returns.index.sort_values()
-    if len(monthly_index) == 0:
-        return pd.DataFrame()
-
-    span = min(n_trailing_months, len(monthly_index))
-    last_n = monthly_index[-span:]
-
-    result_cols = [
-        "Feature",
-        "Avg Excess Return (%)",
-        "Volatility (%)",
-        "Information Ratio",
-        "Maximum Drawdown (%)",
-        "Hit Ratio (%)",
-        "Skewness",
-        "Kurtosis",
-        "Beta",
-        "Tracking Error (%)",
-        "Calmar Ratio",
-        "Average Turnover (%)",
-    ]
-
-    rows = []
-    for feature in features:
-        port_rets = monthly_returns[feature]
-        pr = port_rets.reindex(last_n)
-        br = benchmark_returns.reindex(last_n)
-        metrics = calculate_performance_metrics(pr, br)
-        holdings = monthly_holdings[feature]
-        in_win = holdings.index.intersection(last_n)
-        h_sub = holdings.loc[in_win].sort_index()
-        metrics["Average Turnover (%)"] = calculate_turnover(h_sub)
-        rows.append({"Feature": feature, **metrics})
-
-    out = pd.DataFrame(rows)
-    return out[result_cols] if not out.empty else out
-
-
 # ------------------------------------------------------------------
 # Visualisation (pure matplotlib, no seaborn)
 # ------------------------------------------------------------------
@@ -391,6 +330,13 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
 
     skip_variables = [
         "1MRet", "3MRet", "6MRet", "9MRet", "12MRet",
+        "120MA_CS", "129MA_TS", "Agriculture_TS", "Agriculture_CS",
+        "Copper_TS", "Copper_CS", "Gold_CS", "Gold_TS",
+        "Oil_CS", "Oil_TS", "MCAP Adj_CS", "MCAP Adj_TS",
+        "MCAP_CS", "MCAP_TS", "PX_LAST_CS", "PX_LAST_TS",
+        "Tot Return Index_CS", "Tot Return Index_TS",
+        "Currency_CS", "Currency_TS", "BEST EPS_CS", "BEST EPS_TS",
+        "Trailing EPS_CS", "Trailing EPS_TS",
     ]
 
     try:
@@ -412,31 +358,15 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
             data, features, benchmark_returns
         )
 
-        # Save Excel (full sample + trailing 1Y / 3Y / 5Y on benchmark calendar)
+        # Save Excel
         print("\nSaving results...")
         results = results.sort_values("Information Ratio", ascending=False)
-        excel_path = os.path.join(output_dir, "GDELT Top20.xlsx")
-        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-            results.to_excel(
-                writer, sheet_name="Full_Sample", index=False, float_format="%.2f"
-            )
-            for sheet_name, n_months in TRAILING_YEAR_WINDOWS:
-                tail_df = build_trailing_results_table(
-                    monthly_returns,
-                    monthly_holdings,
-                    benchmark_returns,
-                    features,
-                    n_months,
-                )
-                tail_df = tail_df.sort_values("Information Ratio", ascending=False)
-                tail_df.to_excel(
-                    writer, sheet_name=sheet_name, index=False, float_format="%.2f"
-                )
-                print(f"  Excel sheet {sheet_name!r}: last {n_months} benchmark months")
+        excel_path = os.path.join(output_dir, "T2 Top20.xlsx")
+        results.to_excel(excel_path, index=False, float_format="%.2f")
 
         # Charts
         print("Creating charts...")
-        pdf_path = os.path.join(output_dir, "GDELT Top20.pdf")
+        pdf_path = os.path.join(output_dir, "T2 Top20.pdf")
         create_performance_charts(monthly_returns, benchmark_returns, pdf_path)
 
         # Exposure CSV - keep original logic for exact match
@@ -454,7 +384,7 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
                 exposure_rows.append(row)
 
         exposure_df = pd.DataFrame(exposure_rows, columns=["Date", "Country"] + features)
-        exposure_path = os.path.join(output_dir, "GDELT_Top_20_Exposure.csv")
+        exposure_path = os.path.join(output_dir, "T2_Top_20_Exposure.csv")
         exposure_df.to_csv(exposure_path, index=False)
 
         # ----------------------------------------------------------------
@@ -471,7 +401,7 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
 
 
 if __name__ == "__main__":
-    DATA_PATH = "GDELT_Factors_MasterCSV.csv"
+    DATA_PATH = "Normalized_T2_MasterCSV.csv"
     BENCHMARK_PATH = "Portfolio_Data.xlsx"
-    OUTPUT_DIR = "."
+    OUTPUT_DIR = "."  # current directory
     run_portfolio_analysis(DATA_PATH, BENCHMARK_PATH, OUTPUT_DIR)

@@ -12,22 +12,25 @@ OUTPUT FILES:
 - T2 Top20.xlsx                  # sort-based: performance table sorted by IR
 - T2 Top20.pdf                   # sort-based: cumulative excess-return charts
 - T2_Top_20_Exposure.csv         # sort-based: monthly country weights
-- T2 Top20 Regression.xlsx       # regression-based: performance table sorted by IR
-- T2 Top20 Regression.pdf        # regression-based: cumulative beta charts
+- T2 Top20 Regression.xlsx       # univariate OLS: performance table sorted by Sharpe
+- T2 Top20 Regression.pdf        # univariate OLS: cumulative factor return charts
+- T2 Top20 LASSO.xlsx            # multivariate LASSO: performance table sorted by Sharpe
+- T2 Top20 LASSO.pdf             # multivariate LASSO: cumulative factor return charts
+- T2 Top20 LASSO Combined.pdf   # overlay: LASSO vs sort-based on dual y-axes
 
-VERSION: 3.3 – added cross-sectional regression factor returns
+VERSION: 3.5 – added multivariate LASSO regression
 LAST UPDATED: 2026-04-06
 AUTHOR: Claude Code (optimized for speed)
 
 HOW FACTOR RETURNS ARE FORMED (REGRESSION METHOD):
-  Each month, for each factor, we run a univariate OLS regression:
-      1MRet(country) = alpha + beta * factor_score(country) + error
-  across all countries that have both a valid factor score and a valid return.
-  The slope coefficient (beta) is the factor's return for that month.
-  A positive beta means that countries with higher factor scores tended to
-  earn higher returns that month — i.e., the factor "worked."
+  Each month, for each factor, we run a simple cross-sectional OLS regression
+  of country excess returns (country return minus benchmark) on factor scores:
+      (1MRet(country) - benchmark) = alpha + beta * factor_score(country) + error
+  The slope (beta) captures how much excess return is associated with a unit
+  of factor exposure.  A positive beta means countries with higher factor
+  scores earned higher excess returns that month — i.e., the factor "worked."
   We collect one beta per month per factor to form a time series, then
-  evaluate it using the same performance metrics as the sort-based approach.
+  evaluate it as a standalone factor return series (mean, t-stat, Sharpe, etc.).
 
 OPTIMIZATIONS:
 - Pre-indexed data lookups using dictionaries instead of repeated DataFrame filtering
@@ -50,7 +53,9 @@ import pandas as pd
 
 from step_three_regression_utils import (
     analyze_portfolios_regression,
+    analyze_portfolios_lasso,
     create_regression_charts,
+    create_combined_charts,
 )
 
 # ------------------------------------------------------------------
@@ -408,18 +413,44 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
         # Regression-based factor returns
         # ----------------------------------------------------------------
         print("\nRunning cross-sectional regression analysis...")
-        print(f"Analyzing {len(features)} features via monthly OLS (beta = factor return)...")
+        print(f"Analyzing {len(features)} features via monthly OLS on excess returns...")
         monthly_betas, reg_results = analyze_portfolios_regression(
-            data, features, benchmark_returns, calculate_performance_metrics
+            data, features, benchmark_returns
         )
 
-        reg_results = reg_results.sort_values("Information Ratio", ascending=False)
+        reg_results = reg_results.sort_values("Sharpe Ratio", ascending=False)
         reg_excel_path = os.path.join(output_dir, "T2 Top20 Regression.xlsx")
         reg_results.to_excel(reg_excel_path, index=False, float_format="%.2f")
 
         reg_pdf_path = os.path.join(output_dir, "T2 Top20 Regression.pdf")
         print("Creating regression charts...")
-        create_regression_charts(monthly_betas, benchmark_returns, reg_pdf_path)
+        create_regression_charts(monthly_betas, reg_pdf_path)
+
+        # ----------------------------------------------------------------
+        # Multivariate LASSO factor returns
+        # ----------------------------------------------------------------
+        print("\nRunning multivariate LASSO regression (LassoCV)...")
+        lasso_betas, lasso_results, lasso_alphas = analyze_portfolios_lasso(
+            data, features, benchmark_returns
+        )
+
+        lasso_results = lasso_results.sort_values("Sharpe Ratio", ascending=False)
+        lasso_excel_path = os.path.join(output_dir, "T2 Top20 LASSO.xlsx")
+        lasso_results.to_excel(lasso_excel_path, index=False, float_format="%.2f")
+
+        lasso_pdf_path = os.path.join(output_dir, "T2 Top20 LASSO.pdf")
+        print("Creating LASSO charts...")
+        create_regression_charts(lasso_betas, lasso_pdf_path)
+
+        # Combined overlay: LASSO vs sort-based
+        sort_excess = {f: monthly_returns[f] - benchmark_returns for f in features}
+        lasso_combined_path = os.path.join(output_dir, "T2 Top20 LASSO Combined.pdf")
+        print("Creating LASSO vs Sort-based combined charts...")
+        create_combined_charts(
+            sort_excess, lasso_betas,
+            "Sort-based", "LASSO",
+            lasso_combined_path,
+        )
 
         # ----------------------------------------------------------------
         print("\nAnalysis complete!")
@@ -428,6 +459,9 @@ def run_portfolio_analysis(data_path: str, benchmark_path: str, output_dir: str)
         print(f"Exposure → {exposure_path}")
         print(f"Regression Results → {reg_excel_path}")
         print(f"Regression Charts  → {reg_pdf_path}")
+        print(f"LASSO Results      → {lasso_excel_path}")
+        print(f"LASSO Charts       → {lasso_pdf_path}")
+        print(f"LASSO Combined     → {lasso_combined_path}")
 
     except Exception as err:
         import traceback

@@ -15,12 +15,15 @@ OUTPUT FILES:
 - T2_Optimizer.xlsx (Monthly_Net_Returns sheet):
   Monthly excess returns for each factor portfolio (portfolio return - benchmark return)
   Used as input for portfolio optimization in later steps
+- T2_RSQ.xlsx (Monthly_RSQ sheet):
+  R² of OLS line through cumulative net return over the trailing 12 months per factor
+  (same monthly inputs as T2_Optimizer after row-wise mean fill; first 11 months blank RSQ)
 - T60.xlsx (T60 sheet):
   60-month trailing averages of excess returns for each factor
   Provides smoothed performance trends for analysis
 
-VERSION: 4.2 - FAST Optimized Fuzzy Logic Implementation
-LAST UPDATED: 2025-12-03
+VERSION: 4.3 - FAST Optimized Fuzzy Logic Implementation (+ T2_RSQ)
+LAST UPDATED: 2026-04-06
 AUTHOR: Claude Code (optimized for speed)
 
 OPTIMIZATIONS:
@@ -69,6 +72,8 @@ NOTES:
 - Missing factor values are handled by skipping those country-date combinations
 - Cross-sectional mean filling ensures no missing data in final output
 - Results are scaled to percentage points (multiplied by 100)
+- T2_RSQ.xlsx uses the same filled decimal net returns as the optimizer (before ×100);
+  Step Five FAST (USE_RSQ_MODIFIER) reads T2_RSQ.xlsx to scale μ.
 =============================================================================
 """
 
@@ -270,6 +275,70 @@ def analyze_portfolios(
 
 
 # ------------------------------------------------------------------
+# Rolling R² on 12-month cumulative net-return path (T2_RSQ.xlsx)
+# ------------------------------------------------------------------
+RSQ_TRAILING_MONTHS = 12
+RSQ_BLANK_INITIAL_ROWS = RSQ_TRAILING_MONTHS - 1  # 11 rows with no RSQ
+T2_RSQ_OUTPUT = "T2_RSQ.xlsx"
+
+
+def _r_squared_ols_line(x: np.ndarray, y: np.ndarray) -> float:
+    """R² for linear fit y ~ a + b*x (x, y length n)."""
+    if len(x) != len(y) or len(y) < 2:
+        return float("nan")
+    if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        return float("nan")
+    a_mat = np.column_stack([x, np.ones(len(x))])
+    coef, _, _, _ = np.linalg.lstsq(a_mat, y, rcond=None)
+    y_hat = a_mat @ coef
+    ss_res = float(np.sum((y - y_hat) ** 2))
+    ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+    if ss_tot <= 1e-18:
+        return float("nan")
+    return 1.0 - ss_res / ss_tot
+
+
+def rolling_cumulative_return_rsq(monthly_net: pd.DataFrame) -> pd.DataFrame:
+    """
+    For each factor column, take 12 consecutive monthly net returns ending at t (inclusive),
+    cumulative sum, regress on time 0..11, store R². First 11 rows are NaN.
+    """
+    out = pd.DataFrame(
+        np.nan, index=monthly_net.index, columns=monthly_net.columns, dtype=float
+    )
+    arr = monthly_net.to_numpy(dtype=float)
+    n_rows, n_cols = arr.shape
+    t_ix = np.arange(RSQ_TRAILING_MONTHS, dtype=float)
+    for j in range(n_cols):
+        col = arr[:, j]
+        for i in range(RSQ_BLANK_INITIAL_ROWS, n_rows):
+            win = col[i - RSQ_BLANK_INITIAL_ROWS : i + 1]
+            if win.shape[0] != RSQ_TRAILING_MONTHS:
+                continue
+            if not np.all(np.isfinite(win)):
+                continue
+            cumulative = np.cumsum(win)
+            out.iat[i, j] = _r_squared_ols_line(t_ix, cumulative)
+    return out
+
+
+def save_rsq_to_excel(rsq_df: pd.DataFrame, output_path: str) -> None:
+    """Write R² grid; first 11 factor cells per column left blank in Excel."""
+    with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+        rsq_df.to_excel(writer, sheet_name="Monthly_RSQ", index_label="Date")
+        wb = writer.book
+        ws = writer.sheets["Monthly_RSQ"]
+        date_fmt = wb.add_format({"num_format": "dd-mmm-yyyy"})
+        num_fmt = wb.add_format({"num_format": "0.0000"})
+        ws.set_column(0, 0, 15, date_fmt)
+        ws.set_column(1, len(rsq_df.columns), 12, num_fmt)
+        for r in range(1, 1 + RSQ_BLANK_INITIAL_ROWS):
+            for c in range(1, 1 + len(rsq_df.columns)):
+                ws.write_blank(r, c, None, num_fmt)
+    print(f"{output_path} saved.")
+
+
+# ------------------------------------------------------------------
 # Excel Output Helpers (unchanged, except debug prints preserved)
 # ------------------------------------------------------------------
 def save_net_returns_to_excel(net_returns: Dict[str, pd.Series], output_path: str):
@@ -293,8 +362,8 @@ def save_net_returns_to_excel(net_returns: Dict[str, pd.Series], output_path: st
         else:
             print(f"\nFactor {fac} does NOT exist")
 
-    # Dict[Series] → DataFrame
-    net_df = pd.DataFrame(net_returns)
+    # Dict[Series] → DataFrame (chronological order for RSQ / T60 / optimizer)
+    net_df = pd.DataFrame(net_returns).sort_index()
 
     # Exclude multi-month returns and other unwanted columns
     cols_excl = [
@@ -337,17 +406,23 @@ def save_net_returns_to_excel(net_returns: Dict[str, pd.Series], output_path: st
     print("Preview:")
     print(net_df.iloc[:5, :5])
 
+    filled = net_df.apply(lambda row: row.fillna(row.mean()), axis=1)
+
+    # ------------------------------------------------------------------
+    # 12-month trailing cumulative-return linear R² (T2_RSQ.xlsx)
+    # ------------------------------------------------------------------
+    rsq_df = rolling_cumulative_return_rsq(filled)
+    save_rsq_to_excel(rsq_df, T2_RSQ_OUTPUT)
+
     # ------------------------------------------------------------------
     # Trailing 60-month averages (T60.xlsx)
     # ------------------------------------------------------------------
     print("\nWriting trailing 60-month averages to T60.xlsx …")
-    filled = net_df.apply(lambda row: row.fillna(row.mean()), axis=1)
+    filled_t60 = filled.copy()
+    next_month = filled_t60.index[-1] + pd.DateOffset(months=1)
+    filled_t60.loc[next_month] = np.nan
 
-    # Add an extra future month before rolling
-    next_month = filled.index[-1] + pd.DateOffset(months=1)
-    filled.loc[next_month] = np.nan
-
-    t60 = filled.shift(1).rolling(60, min_periods=1).mean() * 100
+    t60 = filled_t60.shift(1).rolling(60, min_periods=1).mean() * 100
 
     with pd.ExcelWriter("T60.xlsx", engine="xlsxwriter") as writer:
         t60.to_excel(writer, sheet_name="T60", index_label="Date")
@@ -359,9 +434,8 @@ def save_net_returns_to_excel(net_returns: Dict[str, pd.Series], output_path: st
     # ------------------------------------------------------------------
     # Main net-return sheet (T2_Optimizer.xlsx)
     # ------------------------------------------------------------------
-    net_df = net_df.apply(lambda row: row.fillna(row.mean()), axis=1) * 100
-    net_df.sort_index(inplace=True)
-    net_df.to_excel(
+    net_out = filled * 100
+    net_out.to_excel(
         output_path, sheet_name="Monthly_Net_Returns", index_label="Date"
     )
     print(f"T2_Optimizer.xlsx saved to {output_path}")
