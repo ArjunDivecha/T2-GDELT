@@ -517,7 +517,8 @@ def run_optimization(target_weights_df, returns_df, alphas_df, country_costs):
 
 def calculate_portfolio_returns(weights_df, returns_df):
     """
-    Calculate portfolio returns given weights and country returns
+    Calculate portfolio returns given weights and country returns.
+    Uses t+1 returns to match Step Nine timing: weights(t) * returns(t+1)
     
     Args:
         weights_df: Portfolio weights DataFrame
@@ -526,20 +527,26 @@ def calculate_portfolio_returns(weights_df, returns_df):
     Returns:
         pandas Series: Portfolio returns
     """
-    # Find common dates
-    common_dates = sorted(list(set(weights_df.index).intersection(set(returns_df.index))))
+    # Get weight dates
+    weight_dates = weights_df.index
     
     portfolio_returns = []
+    aligned_dates = []
     
-    for date in common_dates:
+    for i, date in enumerate(weight_dates):
+        # Get next month's returns (t+1) to match Step Nine timing
+        next_month_idx = returns_df.index.get_loc(date) + 1 if date in returns_df.index else None
+        if next_month_idx is None or next_month_idx >= len(returns_df.index):
+            continue
+        
+        next_month_date = returns_df.index[next_month_idx]
         weights = weights_df.loc[date]
-        returns = returns_df.loc[date]
+        returns = returns_df.loc[next_month_date]
         
         # Find common countries
         common_countries = set(weights.index).intersection(set(returns.index))
         
         if len(common_countries) == 0:
-            portfolio_returns.append(np.nan)
             continue
         
         # Calculate weighted return
@@ -554,10 +561,9 @@ def calculate_portfolio_returns(weights_df, returns_df):
         # Normalize by total weight
         if total_weight > 0:
             portfolio_returns.append(weighted_return / total_weight)
-        else:
-            portfolio_returns.append(np.nan)
+            aligned_dates.append(next_month_date)
     
-    return pd.Series(portfolio_returns, index=common_dates)
+    return pd.Series(portfolio_returns, index=aligned_dates)
 
 def calculate_turnover_series(weights_df):
     """
