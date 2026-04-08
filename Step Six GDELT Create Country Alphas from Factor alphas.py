@@ -42,11 +42,11 @@ def load_data():
     print(f"Loading factor alpha data from {T60_FILE}...")
     factor_df = pd.read_excel(T60_FILE, sheet_name=0)
     factor_df = factor_df.rename(columns={factor_df.columns[0]: 'Date'})
-    factor_df['Date'] = pd.to_datetime(factor_df['Date'])
+    factor_df['Date'] = pd.to_datetime(factor_df['Date']).dt.to_period('M').dt.to_timestamp()
 
     print(f"Loading wide-format country exposure data from {EXPOSURE_FILE}...")
     exposure_df = pd.read_csv(EXPOSURE_FILE)
-    exposure_df['Date'] = pd.to_datetime(exposure_df['Date'])
+    exposure_df['Date'] = pd.to_datetime(exposure_df['Date']).dt.to_period('M').dt.to_timestamp()
 
     print(f"Loading country order reference from {T2_MASTER_FILE}...")
     try:
