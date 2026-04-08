@@ -61,7 +61,9 @@ by_date = factor_df.groupby('date')
 # ===============================
 
 print("\nProcessing all dates using centralized utility...")
-for date in tqdm(all_dates):
+print("Using t+1 exposures to match Step 5 timing...")
+
+for i, date in enumerate(tqdm(all_dates)):
     date_dt = pd.to_datetime(date)
     
     if date_dt not in feature_weights_df.index:
@@ -72,8 +74,17 @@ for date in tqdm(all_dates):
     if w.empty:
         continue
     
+    # Get next month's exposures (t+1) to match Step 5's use of factor_returns(t+1)
+    # Step 5 uses weights(t) × factor_returns(t+1)
+    # factor_returns(t+1) were calculated using country_selection(t+1) from exposures(t+1)
+    next_month_idx = all_dates.index(date) + 1 if date in all_dates else None
+    if next_month_idx is None or next_month_idx >= len(all_dates):
+        continue
+    
+    next_date = pd.to_datetime(all_dates[next_month_idx])
+    
     try:
-        slice_df = by_date.get_group(date_dt)
+        slice_df = by_date.get_group(next_date)
     except KeyError:
         continue
     
@@ -81,11 +92,12 @@ for date in tqdm(all_dates):
     pivot = slice_df.pivot(index='country', columns='variable', values='value')
     
     # Calculate country weights using centralized utility
-    country_weights = calculate_country_weights_from_factors(w, pivot, date_dt)
+    country_weights = calculate_country_weights_from_factors(w, pivot, next_date)
     
     if country_weights is None or country_weights.empty:
         continue
     
+    # Store weights at original date t (weights are applied at t, but based on t+1 exposures)
     all_weights.loc[date, country_weights.index] = country_weights.values
 
 # ===============================

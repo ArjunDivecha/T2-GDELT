@@ -77,15 +77,24 @@ print(f"Number of months: {len(common_dates)}")
 # ===============================
 
 print("\nCalculating portfolio returns...")
-portfolio_returns = np.zeros(len(common_dates))
+portfolio_returns = []
+aligned_dates = []
 
-for i, date in enumerate(common_dates):
+for date in common_dates:
+    if date not in weights_df.index:
+        continue
+    
+    # Get next month's returns to match Step 5 timing
+    next_month_idx = returns_df.index.get_loc(date) + 1
+    if next_month_idx >= len(returns_df.index):
+        continue
+    
+    next_month_date = returns_df.index[next_month_idx]
     weights = weights_df.loc[date]
-    next_returns = returns_df.loc[date]
+    next_returns = returns_df.loc[next_month_date]
     common_countries = set(weights.index).intersection(next_returns.index)
 
     if len(common_countries) == 0:
-        portfolio_returns[i] = np.nan
         continue
 
     weighted_return = 0.0
@@ -94,7 +103,11 @@ for i, date in enumerate(common_dates):
         r = next_returns[country]
         if not np.isnan(w) and not np.isnan(r):
             weighted_return += w * r
-    portfolio_returns[i] = weighted_return
+    
+    portfolio_returns.append(weighted_return)
+    aligned_dates.append(next_month_date)
+
+portfolio_returns = np.array(portfolio_returns)
 
 # ===============================
 # TURNOVER CALCULATION
@@ -103,14 +116,28 @@ for i, date in enumerate(common_dates):
 print("Calculating portfolio turnover...")
 
 
-def calculate_turnover(weights_df, common_dates):
+def calculate_turnover(weights_df, aligned_dates):
+    """Calculate turnover based on weight dates, not return dates."""
+    # Get the actual weight dates that generated the returns
+    weight_dates = [aligned_dates[0]]  # First return comes from first weight date
+    for i in range(1, len(aligned_dates)):
+        # Return at aligned_dates[i] comes from weight at aligned_dates[i-1]
+        weight_dates.append(aligned_dates[i-1])
+    
     turnover_data = []
-    for i, date in enumerate(common_dates):
+    for i, weight_date in enumerate(weight_dates):
         if i == 0:
             turnover_data.append(np.nan)
             continue
-        current_weights = weights_df.loc[date]
-        previous_weights = weights_df.loc[common_dates[i - 1]]
+        if weight_date not in weights_df.index:
+            turnover_data.append(np.nan)
+            continue
+        if weight_dates[i - 1] not in weights_df.index:
+            turnover_data.append(np.nan)
+            continue
+            
+        current_weights = weights_df.loc[weight_date]
+        previous_weights = weights_df.loc[weight_dates[i - 1]]
         all_countries = set(current_weights.index).union(set(previous_weights.index))
         turnover = 0
         for country in all_countries:
@@ -122,16 +149,16 @@ def calculate_turnover(weights_df, common_dates):
                 pw = 0
             turnover += abs(cw - pw)
         turnover_data.append(turnover / 2)
-    return pd.Series(turnover_data, index=common_dates)
+    return pd.Series(turnover_data, index=aligned_dates)
 
 
-turnover_series = calculate_turnover(weights_df, common_dates)
+turnover_series = calculate_turnover(weights_df, aligned_dates)
 
 results = pd.DataFrame({
     'Portfolio': portfolio_returns,
-    'Equal Weight': benchmark_df.loc[common_dates, 'equal_weight'],
+    'Equal Weight': benchmark_df.loc[aligned_dates, 'equal_weight'],
     'Turnover': turnover_series
-}, index=common_dates)
+}, index=aligned_dates)
 results['Net Return'] = results['Portfolio'] - results['Equal Weight']
 
 portfolio_mean = results['Portfolio'].mean() * 12 * 100
