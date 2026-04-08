@@ -131,7 +131,7 @@ results = pd.DataFrame({
     'Portfolio': portfolio_returns,
     'Equal Weight': benchmark_df.loc[common_dates, 'equal_weight'],
     'Turnover': turnover_series
-})
+}, index=common_dates)
 results['Net Return'] = results['Portfolio'] - results['Equal Weight']
 
 portfolio_mean = results['Portfolio'].mean() * 12 * 100
