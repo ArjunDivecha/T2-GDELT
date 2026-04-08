@@ -22,6 +22,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+from gdelt_country_factor_transform import calculate_country_weights_from_factors
 
 # ===============================
 # GDELT FILE PATHS
@@ -30,12 +31,6 @@ weights_file = "GDELT_rolling_window_weights.xlsx"
 factor_file = "GDELT_Factors_MasterCSV.csv"
 OUTPUT_FILE = "GDELT_Final_Country_Weights.xlsx"
 COUNTRY_FINAL_FILE = "GDELT_Country_Final.xlsx"
-
-# ===============================
-# FUZZY LOGIC CONFIGURATION
-# ===============================
-SOFT_BAND_TOP = 0.15
-SOFT_BAND_CUTOFF = 0.25
 
 # ===============================
 # DATA LOADING
@@ -58,71 +53,39 @@ all_factor_dates = sorted(factor_df['date'].unique())
 all_dates = list(feature_weights_df.index)
 all_weights = pd.DataFrame(index=all_dates, columns=all_countries).fillna(0.0)
 
-# ===============================
-# WEIGHT CALCULATION
-# ===============================
-
-print("\nProcessing all dates (vectorized per date)...")
+# Group by date for efficient lookup
 by_date = factor_df.groupby('date')
 
+# ===============================
+# WEIGHT CALCULATION (using centralized utility)
+# ===============================
 
-def calculate_country_contributions_for_date(date_dt):
+print("\nProcessing all dates using centralized utility...")
+for date in tqdm(all_dates):
+    date_dt = pd.to_datetime(date)
+    
     if date_dt not in feature_weights_df.index:
-        return None, None
-
+        continue
+    
     w = feature_weights_df.loc[date_dt].astype(float)
     w = w[w.abs() > 1e-10]
     if w.empty:
-        return None, None
-
+        continue
+    
     try:
         slice_df = by_date.get_group(date_dt)
     except KeyError:
-        return None, None
-
-    pivot = slice_df.pivot(index='country', columns='variable', values='value')
-    common_factors = pivot.columns.intersection(w.index)
-    if len(common_factors) == 0:
-        return None, None
-
-    V = pivot[common_factors]
-    w_vec = w.loc[common_factors]
-
-    rank_desc = V.rank(axis=0, method='first', ascending=False)
-    rank_asc = V.rank(axis=0, method='first', ascending=True)
-    counts = V.notna().sum(axis=0).replace(0, np.nan)
-
-    counts_mat = np.tile(counts.values, (len(V.index), 1))
-    rank_desc_pct = rank_desc.values / counts_mat
-    rank_asc_pct = rank_asc.values / counts_mat
-
-    pos_mask = (w_vec.values > 0).astype(float)
-    pos_mask_mat = np.tile(pos_mask, (len(V.index), 1))
-    rank_pct = np.where(pos_mask_mat > 0, rank_desc_pct, rank_asc_pct)
-
-    full_mask = (rank_pct < SOFT_BAND_TOP).astype(float)
-    in_band = (rank_pct >= SOFT_BAND_TOP) & (rank_pct <= SOFT_BAND_CUTOFF)
-    taper = 1.0 - (rank_pct - SOFT_BAND_TOP) / (SOFT_BAND_CUTOFF - SOFT_BAND_TOP)
-    taper = np.where(in_band, taper, 0.0)
-    fuzzy = full_mask + taper
-
-    col_sums = fuzzy.sum(axis=0)
-    col_sums[col_sums == 0] = 1.0
-    fuzzy_norm = fuzzy / col_sums
-
-    w_mat = np.tile(w_vec.values, (len(V.index), 1))
-    contrib = fuzzy_norm * w_mat
-    contributions_df = pd.DataFrame(contrib, index=V.index, columns=common_factors)
-    country_weights = contributions_df.sum(axis=1)
-
-    return country_weights, contributions_df
-
-
-for date in tqdm(all_dates):
-    date_dt = pd.to_datetime(date)
-    country_weights, _ = calculate_country_contributions_for_date(date_dt)
-    if country_weights is None:
         continue
+    
+    # Pivot to get countries × factors matrix
+    pivot = slice_df.pivot(index='country', columns='variable', values='value')
+    
+    # Calculate country weights using centralized utility
+    country_weights = calculate_country_weights_from_factors(w, pivot, date_dt)
+    
+    if country_weights is None or country_weights.empty:
+        continue
+    
     all_weights.loc[date, country_weights.index] = country_weights.values
 
 # ===============================
@@ -220,21 +183,10 @@ def write_final_country_weights():
         sorted_weights = pd.DataFrame(list(country_weight_dict.items()),
                                       columns=['Country', 'Weight'])
 
-    print("\nCalculating per-factor country contributions for latest date ...")
-    latest_country_weights, contributions_df = calculate_country_contributions_for_date(latest_valid_date)
-    if contributions_df is None:
-        print("Error: Unable to calculate per-factor country contributions")
-        return
-    print(f"Found {len(contributions_df.columns)} factors with non-zero weights on {latest_valid_date}.")
-
-    factor_totals = contributions_df.sum().sort_values(ascending=False)
-    contributions_df = contributions_df[factor_totals.index]
-
-    contributions_reset = contributions_df.reset_index().rename(
-        columns={'index': 'Country', 'country': 'Country'})
-    final_df = pd.merge(sorted_weights, contributions_reset, on='Country', how='left')
-    final_df = final_df.fillna(0.0)
-    final_df = final_df.drop_duplicates(subset='Country', keep='first')
+    # Simplified output - just country weights without per-factor breakdown
+    final_df = sorted_weights.copy()
+    final_df = final_df[final_df['Weight'] != 0]
+    final_df = final_df.sort_values('Weight', ascending=False)
 
     total_weight = final_df['Weight'].sum()
     if abs(total_weight - 1.0) > 1e-6:
@@ -252,8 +204,7 @@ def write_final_country_weights():
         pct_format = workbook.add_format({'num_format': '0.00%'})
 
         worksheet.set_column(0, 0, 15)
-        last_col = final_df.shape[1] - 1
-        worksheet.set_column(1, last_col, 12, pct_format)
+        worksheet.set_column(1, 1, 12, pct_format)
 
         for col_num, value in enumerate(final_df.columns.values):
             worksheet.write(0, col_num, value, header_format)
@@ -262,12 +213,9 @@ def write_final_country_weights():
         bold_format = workbook.add_format({'bold': True})
         total_format = workbook.add_format({'bold': True, 'num_format': '0.00%'})
         worksheet.write(last_row, 0, 'TOTAL', bold_format)
+        worksheet.write(last_row, 1, total_weight, total_format)
 
-        col_sums = final_df.drop(columns=['Country']).sum()
-        for col_idx, col_name in enumerate(final_df.columns[1:], start=1):
-            worksheet.write(last_row, col_idx, col_sums[col_name], total_format)
-
-    print(f"Final weights with factor contributions saved to {COUNTRY_FINAL_FILE}")
+    print(f"Final weights saved to {COUNTRY_FINAL_FILE}")
 
 
 write_final_country_weights()
