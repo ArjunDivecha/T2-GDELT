@@ -83,13 +83,13 @@ plt.style.use('default')
 # Portfolio optimization parameters
 LAMBDA = 0.0              # Risk aversion parameter (higher = more risk-averse)
 HHI_PENALTY = 0.005         # Concentration penalty (higher = more diversified)
-WINDOW_SIZE = 12           # Rolling window size in months
+WINDOW_SIZE = 60           # Rolling window size in months
 # RSQ modifier (T2_RSQ.xlsx, same Monthly_RSQ layout as GDELT_RSQ.xlsx)
-USE_RSQ_MODIFIER = True
+USE_RSQ_MODIFIER = False
 RSQ_PATH = "T2_RSQ.xlsx"
 RSQ_SHEET_NAME = "Monthly_RSQ"
 RSQ_MISSING_MULTIPLIER = 1.0
-RSQ_INFLUENCE = 1.0  # 0 = no RSQ effect, 1 = full μ × RSQ (after fill)
+RSQ_INFLUENCE = 0.0  # 0 = no RSQ effect, 1 = full μ × RSQ (after fill)
 # EMA_DECAY removed - using simple arithmetic mean like original Step Five
 # =============================================================================
 # SETUP LOGGING
@@ -538,17 +538,14 @@ def calculate_strategy_performance(weights_df, returns_df):
     
     for date in weights_df.index:
         if date in returns_df.index:
-            # Get next month's returns (forward-looking)
-            next_month_idx = returns_df.index.get_loc(date) + 1
-            if next_month_idx < len(returns_df.index):
-                next_month_date = returns_df.index[next_month_idx]
-                weights = weights_df.loc[date].values
-                returns = returns_df.loc[next_month_date].values
-                
-                # Calculate portfolio return
-                portfolio_return = np.sum(weights * returns)
-                portfolio_returns.append(portfolio_return)
-                aligned_dates.append(next_month_date)
+            # Use same date returns (Step 1 already shifted returns forward)
+            weights = weights_df.loc[date].values
+            returns = returns_df.loc[date].values
+            
+            # Calculate portfolio return
+            portfolio_return = np.sum(weights * returns)
+            portfolio_returns.append(portfolio_return)
+            aligned_dates.append(date)
     
     # Create portfolio returns series
     portfolio_returns_series = pd.Series(portfolio_returns, index=aligned_dates)
