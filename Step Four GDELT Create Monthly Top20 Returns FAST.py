@@ -20,14 +20,15 @@ OUTPUT FILES:
   have blank RSQ cells per factor)
 - GDELT_Trading_Cost.xlsx — same structure as T2 trading cost output
 
-VERSION: 1.1 - GDELT track (parallel to Step Four T2)
-LAST UPDATED: 2026-04-06
+VERSION: 1.2 - Uses centralized gdelt_country_factor_transform utility
+LAST UPDATED: 2026-04-08
 AUTHOR: Claude Code (optimized for speed)
 
 OPTIMIZATIONS:
 - Pre-merged factor+returns data for each date to avoid repeated merges
 - Pre-indexed data lookups using dictionaries
 - Vectorized numpy operations for weight calculations
+- Centralized fuzzy logic in gdelt_country_factor_transform.py
 
 DESCRIPTION:
 This script creates factor-based investment portfolios and calculates their excess returns.

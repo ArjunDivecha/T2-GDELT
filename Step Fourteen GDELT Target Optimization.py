@@ -71,7 +71,7 @@ ALPHA_MULT = 5.0
 LAMBDA_DRIFT_PENALTY = 50.0
 
 # Transaction cost parameter - higher values reduce turnover
-TRANSACTION_COST = 6
+TRANSACTION_COST = 4
 
 # Country cost shape parameter - higher values tilt turnover away from expensive countries
 COUNTRY_COST_SHAPE_MULT = 0.0
@@ -422,8 +422,11 @@ def run_optimization(target_weights_df, returns_df, alphas_df, country_costs):
             progress = (t + 1) / n_periods * 100
             logging.info(f"... {t+1:3d}/{n_periods} months ({progress:5.1f}%)")
         
-        # Roll forward previous weights using current returns
+        # Roll forward previous weights using next month's returns (t+1)
+        # This matches the portfolio return calculation timing: weights(t) * returns(t+1)
         if t > 0:
+            # Use returns at time t to roll forward from t-1 to t
+            # (since returns(t) is the realized return during month t)
             current_returns = returns_aligned.iloc[t]
             rolled_forward_weights = roll_forward_weights(previous_weights, current_returns)
         else:

@@ -89,12 +89,12 @@ LAMBDA = 0.0              # Risk aversion parameter (higher = more risk-averse)
 HHI_PENALTY = 0.005         # Concentration penalty (higher = more diversified)
 WINDOW_SIZE = 12           # Rolling window size in months
 # RSQ modifier (Step Four GDELT_RSQ.xlsx): μ_adj = μ_forecast * RSQ (per factor, per month)
-USE_RSQ_MODIFIER = True
+USE_RSQ_MODIFIER = False
 RSQ_PATH = "GDELT_RSQ.xlsx"
 RSQ_SHEET_NAME = "Monthly_RSQ"
 RSQ_MISSING_MULTIPLIER = 1.0  # when RSQ is blank/NaN (e.g. first 11 months)
 # How strongly RSQ moves m away from RSQ_MISSING_MULTIPLIER: 0 = no RSQ effect, 1 = full μ×RSQ
-RSQ_INFLUENCE = 1.0
+RSQ_INFLUENCE = 0.0
 # EMA_DECAY removed - using simple arithmetic mean like original Step Five
 # =============================================================================
 # SETUP LOGGING
@@ -428,6 +428,27 @@ def run_fast_optimization():
             RSQ_INFLUENCE,
             RSQ_MISSING_MULTIPLIER,
         )
+        # Diagnostic: confirm RSQ multipliers are actually changing forecasts.
+        aligned = rsq_df.reindex(index=optimization_dates, columns=factor_names)
+        m_all = aligned.fillna(RSQ_MISSING_MULTIPLIER).astype(float)
+        base = float(RSQ_MISSING_MULTIPLIER)
+        m_eff = base + float(RSQ_INFLUENCE) * (m_all - base)
+        m_eff = m_eff.clip(lower=0.0)
+        changed_cells = int(((m_eff - 1.0).abs() > 1e-12).sum().sum())
+        total_cells = int(m_eff.shape[0] * m_eff.shape[1]) if not m_eff.empty else 0
+        changed_dates = int(((m_eff - 1.0).abs().sum(axis=1) > 0).sum()) if not m_eff.empty else 0
+        logging.info(
+            "RSQ diagnostic: changed multipliers in %d/%d cells across %d/%d optimization dates.",
+            changed_cells,
+            total_cells,
+            changed_dates,
+            len(optimization_dates),
+        )
+        if changed_cells == 0:
+            logging.warning(
+                "USE_RSQ_MODIFIER is True but effective multipliers are all 1.0. "
+                "Check RSQ_INFLUENCE and RSQ_MISSING_MULTIPLIER."
+            )
         for date in optimization_dates:
             mult = rsq_multiplier_vector(rsq_df, date, factor_names)
             expected_returns_dict[date] = apply_rsq_to_expected_returns(
