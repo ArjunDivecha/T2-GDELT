@@ -1,14 +1,14 @@
 # T2 & GDELT factor timing
 
-**Last updated:** 2026-04-03  
-**README version:** 4.0
+**Last updated:** 2026-04-29  
+**README version:** 4.1
 
 This repository runs **three related pipelines** that share the same economic idea (rank countries on factors, form portfolios, optimize factor weights, map to country weights, measure returns) but differ in **where factors come from** and **which filenames** they use.
 
 | Track | Factor source | Typical prefix / key files |
 |--------|----------------|----------------------------|
 | **Classic T2** | `T2 Master.xlsx` (Bloomberg-style macro, valuation, momentum, etc.) | `T2_*.xlsx`, `Normalized_T2_*`, `T60.xlsx` |
-| **Pure GDELT** | `GDELT.xlsx` → tidy long CSV + GDELT categories | `GDELT_*.xlsx`, `GDELT_Factors_MasterCSV.csv` |
+| **Pure GDELT** | `GDELT.xlsx` (built from the merged shallow + deep GDELT panel via `Step Zero Build GDELT.py`) → tidy long CSV + GDELT categories | `GDELT_*.xlsx`, `GDELT_Factors_MasterCSV.csv` |
 | **T2 + GDELT combined** | Merged T2 + GDELT factor set (`Combined_T2_GDELT_Factors_MasterCSV.csv`) | `T2_GDELT_Combined_*` |
 
 **Country returns and benchmarks** still come from the T2 side (`T2 Master.xlsx`, `Portfolio_Data.xlsx`, normalized CSV) unless a script docstring says otherwise. GDELT supplies **signals**, not replacement equity returns.
@@ -72,11 +72,12 @@ python "Step FINALFINAL.py"
 
 ## Pure GDELT pipeline
 
-Factors are built from **`GDELT.xlsx`**. The workbook may include documentation sheets (**`README`**, **`README_VARIABLES`**); tidying scripts **skip** those and only process **wide monthly panels** (dates in the first column).
+Factors are built from **`GDELT.xlsx`**, which is now generated directly from the merged shallow + deep GDELT panel by **`Step Zero Build GDELT.py`** (see "Step Zero" note below). The workbook may include documentation sheets (**`README`**, **`README_VARIABLES`**); tidying scripts **skip** those and only process **wide monthly panels** (dates in the first column).
 
 Typical order:
 
 ```bash
+python "Step Zero Build GDELT.py"
 python "Step Two GDELT Create Tidy.py"
 python "Step Three GDELT Top20 Portfolios Fast.py"
 python "Step Four GDELT Create Monthly Top20 Returns FAST.py"
@@ -92,6 +93,14 @@ python "Step Eleven GDELT Compare Strategies.py"
 python "Step Twelve GDELT MultiPeriod Factor Summary.py"
 python "Step Fourteen GDELT Target Optimization.py"
 ```
+
+**Step Zero — `Step Zero Build GDELT.py`:**
+
+Generates `GDELT.xlsx` directly in this directory by reading the merged monthly panel at `/Users/arjundivecha/Dropbox/AAA Backup/A Working/GDELT/Deep/data/features/country_signal_monthly_deep_treated.parquet` (which already combines the shallow GDELT pipeline at `/A Complete/GDELT/` with the Deep ingest at `/A Working/GDELT/Deep/`). It writes one sheet per variable (rows = month-end dates, columns = 34 country buckets), preceded by `README` and `README_VARIABLES` documentation sheets.
+
+Replaces the old workflow where `export_deep_workbook.py` was run manually under `/A Complete/GDELT/scripts/` and the resulting xlsx was copied across by hand. Today `Step Zero Build GDELT.py` delegates to that exporter, but writes atomically to a temp file with sheet-count sanity check, then renames into place after backing up the previous `GDELT.xlsx` to `./backups/`.
+
+This is an interim step — the longer-term plan is to fold both the shallow and deep GDELT pipelines into the ASADO repo so all DuckDB inputs (except the T2 master data) are produced by ASADO. For now, `Step Zero Build GDELT.py` just stops the manual copy/rename. Requires `pandas`, `pyarrow`, `openpyxl` in the active Python env.
 
 **Supporting / optional:**
 
@@ -163,6 +172,7 @@ Steps are built around **pandas / NumPy** and **CVXPY** with vectorized and warm
 
 ## Changelog (README only)
 
+- **4.1 (2026-04-29):** Added `Step Zero Build GDELT.py` as the canonical builder for `GDELT.xlsx` (reads the merged shallow + deep panel parquet directly; replaces the manual `export_deep_workbook.py` run + copy/rename). Documents that this is an interim step toward folding both GDELT pipelines into the ASADO repo.
 - **4.0 (2026-04-03):** Rewrote for three-track layout (T2, Pure GDELT, Combined); current script names; `gdelt_track_config`; GDELT README sheets; combined optimizer caveat; archived vs active grid scripts.  
 - **3.0 (2025-08-31):** Prior README focused on long–short T2 and Steps 0–20 detail (superseded structure above for navigation; methodology detail still lives in script docstrings).
 

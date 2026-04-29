@@ -112,3 +112,8 @@ secrets.json
 credentials.json
 config.json
 
+
+# Editor / tool local state
+.cursor/hooks/state/
+.playwright-cli/
+

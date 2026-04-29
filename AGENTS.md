@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Commands
 
-### Running Individual Steps
+### Running Individual Steps — Classic T2
 ```bash
 python "Step Zero Create P2P Scores.py"
 python "Step One Create T2Master.py"
@@ -19,6 +19,21 @@ python "Step Nine Calculate Portfolio Returns.py"
 python "Step Ten Create Final Report.py"
 python "Step Fourteen Target Optimization.py"
 python "Step Fifteen Market Regime Analysis.py"
+```
+
+### Running Individual Steps — Pure GDELT
+```bash
+python "Step Zero Build GDELT.py"          # build GDELT.xlsx from Deep+shallow merged parquet
+python "Step Two GDELT Create Tidy.py"
+python "Step Three GDELT Top20 Portfolios Fast.py"
+python "Step Four GDELT Create Monthly Top20 Returns FAST.py"
+python "Step Five GDELT FAST.py"
+python "Step Six GDELT Create Country Alphas from Factor alphas.py"
+python "Step Seven GDELT Visualize Factor Weights.py"
+python "Step Eight GDELT Write Country Weights.py"
+python "Step Nine GDELT Calculate Portfolio Returns.py"
+python "Step Ten GDELT Create Final Report.py"
+python "Step Fourteen GDELT Target Optimization.py"
 ```
 
 ### Archived Steps
@@ -115,6 +130,9 @@ Target Optimization → Market Regime Analysis
 ## Learned Workspace Facts
 
 - A parallel GDELT branch exists alongside the classic T2 Master path: factors come from `GDELT.xlsx` (and derived tidy outputs); country returns and other return fields still come from T2 Master / existing market inputs, not from GDELT.
+- **`Step Zero Build GDELT.py`** generates `GDELT.xlsx` directly in this directory by reading the Deep+shallow merged monthly panel at `/Users/arjundivecha/Dropbox/AAA Backup/A Working/GDELT/Deep/data/features/country_signal_monthly_deep_treated.parquet`. Internally it delegates to `/A Complete/GDELT/scripts/export_deep_workbook.py`, but writes atomically to a temp file (`.building.GDELT.xlsx`), validates sheet count > 100, and renames into place after backing up the previous `GDELT.xlsx` to `./backups/`. **Use the `_treated` parquet, not the un-treated one** — the un-treated version has only ~698 columns and produces a 687-sheet workbook (missing the EWMA fast/slow/trend and z-score variants); the `_treated` version has 1,169 columns and yields the canonical 1,158-sheet output.
+- **`Step Zero Build GDELT.py`** dependencies: `pandas`, `pyarrow`, `openpyxl`. The miniforge base env at `/opt/homebrew/Caskroom/miniforge/base/bin/python` already had `pandas` and `openpyxl`; `pyarrow` had to be added (see install hint in the README). Do not silently fall back to a different Python interpreter if `pyarrow` is missing — install it.
+- **`Step Zero Build GDELT.py`** is an interim step. The longer-term plan is to move both the shallow GDELT pipeline (currently `/A Complete/GDELT/`) and the deep ingest (currently `/A Working/GDELT/Deep/`) into the ASADO repo so all DuckDB inputs (except T2 master data) are produced by ASADO. Until then, this builder just stops the manual `export_deep_workbook.py` + copy/rename dance.
 - GDELT factors are maintained in three variants per variable: raw, cross-sectional (CS), and time-series (TS).
 - The user-aligned analysis start for GDELT-wide work is 2015-09-01 (end date follows GDELT coverage after date harmonization).
 - `Step Factor Categories GDELT.xlsx` is the GDELT counterpart to `Step Factor Categories.xlsx` for caps, groupings, and factor lists.

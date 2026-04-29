@@ -56,6 +56,9 @@ NOTES:
 - Eliminates expanding window analysis (focus on hybrid only)
 - No PDF outputs (streamlined for performance)
 - Maintains identical output format to original Step Five
+- When LAMBDA=0, covariance matrix computation is skipped entirely (both rolling and extra month),
+  and CVXPY skips the quad_form risk term. The objective reduces to maximize: w'μ − γ·||w||².
+  This avoids blowups from degenerate/all-NaN covariance matrices when not needed.
 =============================================================================
 """
 
@@ -155,28 +158,32 @@ class FastPortfolioOptimizer:
         # Store previous solution for warm-start
         self.prev_weights = None
         
-    def optimize_weights(self, expected_returns, covariance_matrix):
+    def optimize_weights(self, expected_returns, covariance_matrix=None):
         """
         Optimize portfolio weights using CVXPY with warm-start.
         
         Args:
             expected_returns: np.array of expected returns
-            covariance_matrix: np.array covariance matrix
+            covariance_matrix: np.array covariance matrix (unused when LAMBDA=0)
             
         Returns:
             np.array of optimal weights
         """
-        # CVXPY requires Σ exactly symmetric; eigh reconstruction / float noise can break this.
-        P = np.asarray(covariance_matrix, dtype=np.float64)
-        P = (P + P.T) * 0.5
-
         mu = np.asarray(expected_returns, dtype=np.float64).ravel()
 
         # Convert utility function to quadratic form:
         # Maximize: w'μ - λ*w'Σw - γ*||w||²
         portfolio_return = self.weights_var.T @ mu
-        risk_penalty = self.lambda_param * cp.quad_form(self.weights_var, P)
         concentration_penalty = self.hhi_penalty * cp.sum_squares(self.weights_var)
+        
+        # Skip risk penalty when LAMBDA is zero — avoids quad_form on a
+        # bad/failing covariance matrix entirely.
+        if self.lambda_param > 0:
+            P = np.asarray(covariance_matrix, dtype=np.float64)
+            P = (P + P.T) * 0.5
+            risk_penalty = self.lambda_param * cp.quad_form(self.weights_var, P)
+        else:
+            risk_penalty = 0.0
         
         # Objective: maximize utility (minimize negative utility)
         objective = cp.Maximize(portfolio_return - risk_penalty - concentration_penalty)
@@ -351,6 +358,9 @@ def calculate_rolling_statistics(returns_df, window_size):
         window_size: Rolling window size (60 months)
         # decay_factor parameter removed - using simple arithmetic mean
         
+        LAMBDA global controls whether covariance is computed:
+        when 0, covariance_dict will be empty and optimizer skips risk term.
+        
     Returns:
         tuple: (expected_returns_dict, covariance_dict, dates_list)
     """
@@ -380,22 +390,26 @@ def calculate_rolling_statistics(returns_df, window_size):
         # Apply 8x scaling factor to match original utility calculation (line 148 in original)
         expected_returns = 8 * factor_means
         
-        # Covariance matrix (annualized)
-        # Use ddof=0 to match original np.std(portfolio_returns) calculation (line 145)
-        cov_matrix = np.cov(window_data.values.T, ddof=0) * 12
-        
-        # Ensure positive semi-definite with more robust method
-        try:
-            eigenvals, eigenvecs = np.linalg.eigh(cov_matrix)
-            eigenvals = np.maximum(eigenvals, 1e-6)  # Higher floor for numerical stability
-            cov_matrix = eigenvecs @ np.diag(eigenvals) @ eigenvecs.T
-        except np.linalg.LinAlgError:
-            # Fall back to identity matrix scaled by average variance
-            avg_var = np.diag(cov_matrix).mean()
-            cov_matrix = np.eye(len(window_data.columns)) * avg_var
+        # Fill any NaN expected returns with 0 — some factors (e.g. polarity_mean_CS,
+        # tone_p50_TS) are 100% NaN in the input data, producing NaN means that
+        # CVXPY rejects as "Problem data contains NaN or Inf".
+        expected_returns = expected_returns.fillna(0.0).astype(float)
         
         expected_returns_dict[date] = expected_returns
-        covariance_dict[date] = cov_matrix
+
+        # Covariance matrix (annualized) — only compute when LAMBDA > 0
+        if LAMBDA > 0:
+            # Use ddof=0 to match original np.std(portfolio_returns) calculation (line 145)
+            cov_matrix = np.cov(window_data.values.T, ddof=0) * 12
+            # Ensure positive semi-definite with more robust method
+            try:
+                eigenvals, eigenvecs = np.linalg.eigh(cov_matrix)
+                eigenvals = np.maximum(eigenvals, 1e-6)
+                cov_matrix = eigenvecs @ np.diag(eigenvals) @ eigenvecs.T
+            except np.linalg.LinAlgError:
+                avg_var = np.diag(cov_matrix).mean()
+                cov_matrix = np.eye(len(window_data.columns)) * avg_var
+            covariance_dict[date] = cov_matrix
         dates_list.append(date)
     
     logging.info(f"Pre-computed statistics for {len(dates_list)} optimization periods")
@@ -480,7 +494,7 @@ def run_fast_optimization():
         
         # Get pre-computed statistics
         expected_returns = expected_returns_dict[date]
-        covariance_matrix = covariance_dict[date]
+        covariance_matrix = covariance_dict.get(date)  # None when LAMBDA=0
         
         # Optimize weights
         optimal_weights = optimizer.optimize_weights(expected_returns, covariance_matrix)
@@ -513,6 +527,8 @@ def run_fast_optimization():
     # Calculate expected returns and covariance for extra month
     factor_means = extra_month_data.mean(axis=0)
     expected_returns_extra = 8 * factor_means  # Apply 8x scaling factor
+    # Fill NaN expected returns with 0 (same reason as rolling windows above)
+    expected_returns_extra = expected_returns_extra.fillna(0.0).astype(float)
     if USE_RSQ_MODIFIER and not rsq_df.empty:
         mult_x = rsq_multiplier_vector(
             rsq_df,
@@ -524,17 +540,19 @@ def run_fast_optimization():
             expected_returns_extra, mult_x, factor_names
         )
 
-    # Covariance matrix (annualized)
-    cov_matrix_extra = np.cov(extra_month_data.values.T, ddof=0) * 12
-    
-    # Ensure positive semi-definite
-    try:
-        eigenvals, eigenvecs = np.linalg.eigh(cov_matrix_extra)
-        eigenvals = np.maximum(eigenvals, 1e-6)
-        cov_matrix_extra = eigenvecs @ np.diag(eigenvals) @ eigenvecs.T
-    except np.linalg.LinAlgError:
-        avg_var = np.diag(cov_matrix_extra).mean()
-        cov_matrix_extra = np.eye(len(extra_month_data.columns)) * avg_var
+    # Covariance matrix (annualized) — only compute when LAMBDA > 0
+    if LAMBDA > 0:
+        cov_matrix_extra = np.cov(extra_month_data.values.T, ddof=0) * 12
+        # Ensure positive semi-definite
+        try:
+            eigenvals, eigenvecs = np.linalg.eigh(cov_matrix_extra)
+            eigenvals = np.maximum(eigenvals, 1e-6)
+            cov_matrix_extra = eigenvecs @ np.diag(eigenvals) @ eigenvecs.T
+        except np.linalg.LinAlgError:
+            avg_var = np.diag(cov_matrix_extra).mean()
+            cov_matrix_extra = np.eye(len(extra_month_data.columns)) * avg_var
+    else:
+        cov_matrix_extra = None
     
     # Optimize weights for extra month
     optimal_weights_extra = optimizer.optimize_weights(expected_returns_extra, cov_matrix_extra)
@@ -584,8 +602,10 @@ def calculate_strategy_performance(weights_df, returns_df):
                 weights = weights_df.loc[date].values
                 returns = returns_df.loc[next_month_date].values
                 
-                # Calculate portfolio return
-                portfolio_return = np.sum(weights * returns)
+                # Calculate portfolio return (use nansum to skip the 6 all-NaN factor columns
+                # like polarity_mean_CS, tone_p50_TS — 0 * NaN = NaN in numpy, but
+                # those factors have zero weight since they contribute no signal)
+                portfolio_return = np.nansum(weights * returns)
                 portfolio_returns.append(portfolio_return)
                 aligned_dates.append(next_month_date)
     
@@ -939,6 +959,13 @@ def save_results(weights_df, performance_results):
 
 def main():
     """Main execution function"""
+    import argparse
+    global WINDOW_SIZE
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--window", type=int, default=WINDOW_SIZE)
+    args_override, _ = ap.parse_known_args()
+    WINDOW_SIZE = args_override.window
+
     setup_logging()
     
     logging.info("="*80)
