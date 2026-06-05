@@ -131,9 +131,10 @@ def verify_output(path: Path) -> int:
     wb.close()
     logger.info("Output sanity: %d sheets total (%d doc, %d data)",
                 sheet_count, len(docs), sheet_count - len(docs))
-    if sheet_count < 100:
+    if sheet_count < 60:
         raise RuntimeError(
-            f"Sheet count too low ({sheet_count}); expected ~1100+. "
+            f"Sheet count too low ({sheet_count}); expected ~112 after the GDELT "
+            "prune (~46 core + ~64 curated deep + 2 docs). "
             "Aborting before overwriting good copy."
         )
     return sheet_count
