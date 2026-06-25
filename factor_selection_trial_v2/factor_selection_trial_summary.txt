@@ -1,0 +1,79 @@
+GDELT Walk-Forward Factor Selection Trial
+=========================================
+
+Input: /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Optimizer.xlsx
+Loaded return date range: 2015-09 to 2026-03
+Analysis-start filter: 2015-09
+Date range scored: 2020-09 to 2026-03
+Factors admitted by latest month: 29
+Factors live after tiering/redundancy by latest month: 17
+Total selection events: 29
+
+Selection parameters:
+- scored_window_months: 60
+- admission persistence: 12 of 18 months
+- Lane 1 cumulative hurdle: full/10y/5y/3y evidence, max(30%, cross-sectional 80% quantile), t-stat >= 2.00, positive in 3/5 subperiods
+- Lane 2 Sharpe hurdle: full/10y/5y/3y evidence, max(1.00, cross-sectional 85% quantile), drawdown >= -25%, min subperiod Sharpe >= 0.00
+- Lane 3 predictability hurdle: self or combined-history IC >= 0.30 and hit-rate >= 58%
+- redundancy filter: direct same-category trailing 60-month return correlation >= 60%; value threshold 75%; value live floor 6
+
+Equal-weight return comparison over scored months:
+- live universe ann return: 1.05%
+- live universe Sharpe: 0.35
+- live universe max drawdown: -5.90%
+- admitted universe ann return: 0.37%
+- admitted universe Sharpe: 0.13
+- admitted universe max drawdown: -7.02%
+- all factors ann return: 0.63%
+- all factors Sharpe: 0.42
+- all factors max drawdown: -2.20%
+
+Latest live factors:
+- attention_slow_z_CS (A, Lane2_Sharpe)
+- country_news_attention_CS (A, Lane2_Sharpe)
+- country_news_attention_TS (A, Lane2_Sharpe)
+- dispersion_fast_CS (A, Lane2_Sharpe)
+- dispersion_fast_z_TS (A, Lane1_Cumulative)
+- event_root_fight_n_CS (A, Lane2_Sharpe)
+- monthly_defensive_rank_pct_TS (A, Lane2_Sharpe)
+- n_articles_CS (A, Lane1_Cumulative)
+- positive_mean_TS (A, Lane1_Cumulative)
+- theme_CONFLICT_VIOL_share_delta_TS (A, Lane1_Cumulative)
+- theme_FRAGILITY_share_delta_TS (A, Lane1_Cumulative)
+- theme_MILITARY_share_delta_TS (A, Lane2_Sharpe)
+- theme_POLVIOL_WAR_share_delta_TS (A, Lane1_Cumulative)
+- theme_REFUGEES_share_delta_TS (A, Lane2_Sharpe)
+- theme_SECURITY_SVCS_share_delta_TS (A, Lane1_Cumulative)
+- theme_TERRORISM_share_delta_TS (A, Lane2_Sharpe)
+- tone_p50_TS (A, Lane1_Cumulative)
+
+Latest admitted factors, including inactive or bench:
+- attention_slow_z_CS (A, Lane2_Sharpe)
+- attention_slow_z_TS (C_Redundant, Lane2_Sharpe)
+- country_news_attention_CS (A, Lane2_Sharpe)
+- country_news_attention_TS (A, Lane2_Sharpe)
+- dispersion_fast_CS (A, Lane2_Sharpe)
+- dispersion_fast_z_CS (C_Redundant, Lane1_Cumulative)
+- dispersion_fast_z_TS (A, Lane1_Cumulative)
+- event_root_assault_n_CS (C_Redundant, Lane2_Sharpe)
+- event_root_fight_n_CS (A, Lane2_Sharpe)
+- event_root_protest_n_CS (C_Redundant, Lane2_Sharpe)
+- local_foreign_gap_CS (B_Inactive, Lane3_Predictable)
+- monthly_defensive_CS (C_Redundant, Lane1_Cumulative)
+- monthly_defensive_TS (C_Redundant, Lane2_Sharpe)
+- monthly_defensive_rank_pct_CS (C_Redundant, Lane1_Cumulative)
+- monthly_defensive_rank_pct_TS (A, Lane2_Sharpe)
+- n_articles_CS (A, Lane1_Cumulative)
+- positive_mean_TS (A, Lane1_Cumulative)
+- theme_CONFLICT_VIOL_share_delta_TS (A, Lane1_Cumulative)
+- theme_ECON_DEBT_share_TS (B_Inactive, Lane3_Predictable)
+- theme_FRAGILITY_share_delta_CS (C_Redundant, Lane2_Sharpe)
+- theme_FRAGILITY_share_delta_TS (A, Lane1_Cumulative)
+- theme_MILITARY_share_delta_CS (C_Redundant, Lane2_Sharpe)
+- theme_MILITARY_share_delta_TS (A, Lane2_Sharpe)
+- theme_POLVIOL_WAR_share_delta_CS (C_Redundant, Lane2_Sharpe)
+- theme_POLVIOL_WAR_share_delta_TS (A, Lane1_Cumulative)
+- theme_REFUGEES_share_delta_TS (A, Lane2_Sharpe)
+- theme_SECURITY_SVCS_share_delta_TS (A, Lane1_Cumulative)
+- theme_TERRORISM_share_delta_TS (A, Lane2_Sharpe)
+- tone_p50_TS (A, Lane1_Cumulative)

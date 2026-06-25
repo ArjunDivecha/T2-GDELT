@@ -1,15 +1,38 @@
 """
 =============================================================================
-SCRIPT: Step Thirteen GDELT Country Alphas Alias.py
+SCRIPT NAME: Step Thirteen GDELT Country Alphas Alias.py
 =============================================================================
 
-Historical step numbering: same computation as **Step Six GDELT** (country alphas from
-T60 × Top-20 exposure). Run Step Six for routine use; this script re-runs that logic
-if you keep a 6→13 numbering habit from the archived T2 flow.
+DESCRIPTION:
+    Compatibility alias that redirects execution to Step Six GDELT (Country
+    Alphas from Factor Alphas). This script exists solely to support the
+    historical 6-to-13 step numbering convention from the archived T2
+    pipeline. It uses importlib to dynamically load and run the main()
+    function from Step Six GDELT Create Country Alphas from Factor alphas.py.
+    Run Step Six directly for routine use.
 
-VERSION: 2.0 — standalone redirect
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Thirteen GDELT Country Alphas Alias.py"
+INPUT FILES:
+    (none — this script delegates to Step Six GDELT, which reads its own
+     input files)
+
+OUTPUT FILES:
+    (none — this script delegates to Step Six GDELT, which writes its own
+     output files)
+
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - Python standard library (importlib, sys)
+
+USAGE:
+    python "Step Thirteen GDELT Country Alphas Alias.py"
+
+NOTES:
+    - Requires Step Six GDELT Create Country Alphas from Factor alphas.py
+      in the same directory.
+    - All documentation for inputs and outputs is on the Step Six file.
 =============================================================================
 """
 

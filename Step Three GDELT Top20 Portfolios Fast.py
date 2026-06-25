@@ -1,31 +1,58 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-SCRIPT NAME: Step Three GDELT Top20 Portfolios Fast.py  (Soft 15–25 % Linear Band)
+SCRIPT NAME: Step Three GDELT Top20 Portfolios Fast.py
 =============================================================================
 
+DESCRIPTION:
+    Analyzes GDELT factor data to build factor-based country portfolios using
+    a soft 15-25% linear taper weighting system. For each GDELT factor (e.g.
+    GDP growth, inflation, momentum), it ranks countries by their score each
+    month, applies tapered weights (top 15% get full weight, 15-25% get
+    linearly decreasing weight), and calculates portfolio returns, performance
+    metrics (excess return, volatility, information ratio, max drawdown, hit
+    rate, skewness, kurtosis, beta, tracking error, Calmar ratio), and
+    turnover. Outputs performance tables at multiple trailing windows (1Y, 3Y,
+    5Y), cumulative excess return charts, and a monthly country exposure
+    matrix. Uses pre-indexed dictionaries and vectorized numpy for speed.
+
 INPUT FILES:
-- GDELT_Factors_MasterCSV.csv  (Raw = sheet name; ``_CS``/``_TS`` variants; 1MRet from
-  Normalized_T2_MasterCSV.csv when built by Step Two GDELT Create Tidy.py)
-- Portfolio_Data.xlsx (sheet "Benchmarks": equal-weight benchmark returns)
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Factors_MasterCSV.csv
+        GDELT factor data in long format (columns: date, country, variable,
+        value). Contains factor scores and 1MRet return series for each
+        country-date combination.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/Portfolio_Data.xlsx
+        Contains Benchmarks sheet with equal-weight benchmark return series
+        indexed by date.
 
 OUTPUT FILES:
-- GDELT Top20.xlsx            # performance tables sorted by IR:
-                              #   sheet Full_Sample = full history (same as before)
-                              #   sheets Trailing_1Y / Trailing_3Y / Trailing_5Y = last 12 / 36 / 60
-                              #   benchmark months (same columns as Full_Sample)
-- GDELT Top20.pdf             # cumulative excess-return charts
-- GDELT_Top_20_Exposure.csv   # monthly country weights (0-1, not just binary)
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT Top20.xlsx
+        Performance tables sorted by Information Ratio, with sheets:
+        Full_Sample (full history), Trailing_1Y, Trailing_3Y, Trailing_5Y.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT Top20.pdf
+        Grid of cumulative excess return charts (one subplot per factor).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Top_20_Exposure.csv
+        Monthly country weight matrix (long format: date, country, factor_1,
+        factor_2, ...) with fractional weights in [0, 1].
 
-VERSION: 1.1 – GDELT factor track (parallel to T2 Top20)
-LAST UPDATED: 2026-04-06
-AUTHOR: Claude Code (optimized for speed)
+VERSION: 1.1
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
 
-OPTIMIZATIONS:
-- Pre-indexed data lookups using dictionaries instead of repeated DataFrame filtering
-- Fast returns lookup using dictionary
-- Vectorized weight calculations using numpy after pandas sorting
-- Removed seaborn dependency (uses pure matplotlib)
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - matplotlib
+    - openpyxl
+
+USAGE:
+    python "Step Three GDELT Top20 Portfolios Fast.py"
+
+NOTES:
+    - Uses soft 15-25% linear taper instead of hard 20% cutoff.
+    - Excludes multi-month return variables (1MRet, 3MRet, etc.) from factor
+      analysis.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 

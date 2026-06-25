@@ -1,17 +1,43 @@
 """
 =============================================================================
-SCRIPT: Step Twelve GDELT MultiPeriod Factor Summary.py
+SCRIPT NAME: Step Twelve GDELT MultiPeriod Factor Summary.py
 =============================================================================
 
-Lightweight Step Twelve: trailing 3/6/12-month mean factor returns from the optimizer
-workbook (last date snapshot). Not a full multi-horizon forecast model.
+DESCRIPTION:
+    Generates a multi-period factor performance summary from the optimizer
+    workbook. Reads monthly net returns for each GDELT factor portfolio, then
+    calculates annualized mean return, annualized volatility, Sharpe ratio,
+    and hit rate for the full sample and trailing 3-month, 6-month, and
+    12-month windows. Outputs a single Excel workbook with separate sheets
+    per window, each sorted by Sharpe ratio in descending order. Lightweight
+    utility — not a full multi-horizon forecast model.
 
-INPUT:  GDELT_Optimizer.xlsx (Monthly_Net_Returns sheet if present)
-OUTPUT: GDELT_MultiPeriod_Factor_Summary.xlsx
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Optimizer.xlsx
+        Monthly net excess returns for each GDELT factor (sheet:
+        Monthly_Net_Returns, indexed by date with factor columns.
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Twelve GDELT MultiPeriod Factor Summary.py"
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_MultiPeriod_Factor_Summary.xlsx
+        Excel workbook with sheets: Full_Sample, Trailing_3M, Trailing_6M,
+        and Trailing_12M, each containing Mean, Vol, Sharpe, and Hit Rate
+        columns sorted by Sharpe ratio.
+
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - xlsxwriter
+
+USAGE:
+    python "Step Twelve GDELT MultiPeriod Factor Summary.py"
+
+NOTES:
+    - Falls back to first sheet if Monthly_Net_Returns sheet is missing.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 

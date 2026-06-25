@@ -1,21 +1,47 @@
 """
 =============================================================================
-UTILITY: gdelt_country_factor_transform.py
+SCRIPT NAME: gdelt_country_factor_transform.py
 =============================================================================
 
-Centralized utility for country↔factor transformation with fuzzy logic.
-Used by Step Four (factor returns) and Step Eight (country weights).
+DESCRIPTION:
+    Centralized utility module providing country-to-factor transformation
+    functions with fuzzy logic weighting. Used by pipeline steps (Step Three,
+    Four, and Eight) to apply consistent 15-25% soft linear taper country
+    selection across all GDELT pipeline stages. Provides four key functions:
+    (1) select_countries_by_factor — ranks countries by factor score and
+    applies tapered weights; (2) calculate_country_weights_from_factors —
+    translates factor portfolio weights into country weights; (3)
+    calculate_factor_return_from_countries — computes factor portfolio returns
+    from country returns; (4) calculate_all_factor_country_weights —
+    convenience function for processing all dates at once. No file I/O — pure
+    computation module meant to be imported by other scripts.
 
-This ensures consistent country selection logic across the pipeline,
-eliminating performance discrepancies between factor and country portfolios.
+INPUT FILES:
+    (none — this module is imported by other scripts; no direct file I/O)
 
-FUZZY LOGIC:
-- Top 15% of countries: full weight
-- 15-25% band: linear taper
-- Bottom 75%: zero weight
+OUTPUT FILES:
+    (none — this module is imported by other scripts; no direct file I/O)
 
 VERSION: 1.0
-LAST UPDATED: 2026-04-08
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+
+USAGE:
+    from gdelt_country_factor_transform import (
+        select_countries_by_factor,
+        calculate_country_weights_from_factors,
+        calculate_factor_return_from_countries,
+        calculate_all_factor_country_weights
+    )
+
+NOTES:
+    - Fuzzy logic: top 15% full weight, 15-25% linear taper, bottom 75% zero.
+    - Consistent country selection across factor and country portfolios.
+    - This module does not read or write any files directly.
 =============================================================================
 """
 

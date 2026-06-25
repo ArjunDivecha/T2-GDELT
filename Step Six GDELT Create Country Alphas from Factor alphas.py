@@ -3,23 +3,53 @@
 
 """
 =============================================================================
-SCRIPT: Step Six GDELT Create Country Alphas from Factor alphas.py
+SCRIPT NAME: Step Six GDELT Create Country Alphas from Factor alphas.py
 =============================================================================
 
-INPUT FILES (run from repo root — same folder as script):
-- GDELT_T60.xlsx           (from Step Four GDELT)
-- GDELT_Top_20_Exposure.csv
-- T2 Master.xlsx           (sheet 1MRet — country column order)
+DESCRIPTION:
+    Translates GDELT factor-level alphas into country-level alpha scores.
+    For each month, factor alphas from GDELT_T60.xlsx are combined with
+    country-level factor exposures from GDELT_Top_20_Exposure.csv using a
+    weighted-sum approach: country_alpha = sum(factor_exposure x
+    factor_alpha) across all valid factors. Missing exposures are imputed
+    with the cross-country mean for that factor/date. Results are pivoted
+    into a dates-by-countries table, ordered per T2 Master.xlsx reference,
+    and saved with data-quality sheets.
 
-OUTPUT:
-- GDELT_Country_Alphas.xlsx
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_T60.xlsx
+        Factor alphas by month from Step Four GDELT. First column is Date,
+        subsequent columns are factor names.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Top_20_Exposure.csv
+        Wide-format country factor exposures: columns Date, Country, then
+        one column per factor.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2 Master.xlsx
+        Optional reference file; sheet '1MRet' column headers define the
+        country ordering for the output pivot table.
 
-PREREQUISITE: Step Five GDELT FAST (rolling weights) is not required; you need
-Step Four GDELT T60 + Step Three exposure CSV.
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Country_Alphas.xlsx
+        Excel workbook with sheets: Country_Scores (monthly alpha pivot),
+        Data_Quality (completeness metrics), Factor_Counts (valid factors
+        per month/country).
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Six GDELT Create Country Alphas from Factor alphas.py"
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - tqdm
+    - xlsxwriter
+
+USAGE:
+    python "Step Six GDELT Create Country Alphas from Factor alphas.py"
+
+NOTES:
+    - Missing exposures are imputed with the cross-country mean per
+      factor/date — all imputations are logged.
+    - Prerequisite: Step Four GDELT T60 output and Step Three exposure CSV.
 =============================================================================
 """
 

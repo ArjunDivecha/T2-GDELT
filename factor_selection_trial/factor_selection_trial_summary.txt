@@ -1,0 +1,31 @@
+GDELT Walk-Forward Factor Selection Trial
+=========================================
+
+Input: /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Optimizer.xlsx
+Loaded return date range: 2015-09 to 2026-03
+Analysis-start filter: 2015-09
+Date range scored: 2020-09 to 2026-03
+Factors admitted by latest month: 5
+Total selection events: 5
+
+Selection parameters:
+- scored_window_months: 60
+- admission persistence: 9 of 18 months
+- standalone hurdle: max(40%, cross-sectional 98% quantile)
+- efficient hurdle: max(1.75 Sharpe, cross-sectional 98% quantile) and t-stat >= 2.25
+- predictability hurdle: self or combined-history IC >= 0.35
+
+Equal-weight return comparison over scored months:
+- selected universe ann return: 2.63%
+- selected universe Sharpe: 0.65
+- selected universe max drawdown: -6.24%
+- all factors ann return: 0.63%
+- all factors Sharpe: 0.42
+- all factors max drawdown: -2.20%
+
+Latest selected factors:
+- country_news_attention_TS
+- local_foreign_gap_CS
+- theme_CONFLICT_VIOL_share_delta_TS
+- theme_ECON_DEBT_share_TS
+- theme_MILITARY_share_TS

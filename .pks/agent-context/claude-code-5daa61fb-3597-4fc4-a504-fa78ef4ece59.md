@@ -6,8 +6,8 @@ repo_name: T2 GDELT
 github_repo: ArjunDivecha/T2-GDELT
 session_id: 5daa61fb-3597-4fc4-a504-fa78ef4ece59
 source_file: 5daa61fb-3597-4fc4-a504-fa78ef4ece59.jsonl
-exported_at: 2026-06-05T04:10:44.938457+00:00
-export_base_commit_sha: aedc344b50eaadb648195df0a437c6d7406ca7fa
+exported_at: 2026-06-25T06:35:03.236629+00:00
+export_base_commit_sha: 01011c1ca6c97e3cb96bef4b83f87aa30164e538
 redacted: true
 ---
 

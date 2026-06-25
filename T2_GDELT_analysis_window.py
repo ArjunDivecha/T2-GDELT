@@ -1,31 +1,50 @@
 """
 =============================================================================
-MODULE: T2_GDELT_analysis_window.py
+SCRIPT NAME: T2_GDELT_analysis_window.py
 =============================================================================
 
-PURPOSE (simple terms):
-  All T2 pipeline outputs that should line up with GDELT use the same monthly
-  start and end dates. Those dates are read from ``GDELT.xlsx`` so you only
-  change the workbook when coverage changes — scripts stay in sync.
+DESCRIPTION:
+    Defines the shared monthly analysis window (start and end dates) for
+    all T2 pipeline outputs that must align with GDELT coverage. The window
+    is read from GDELT.xlsx sheet 'monthly_metronome': the start month is
+    the first row with any non-blank country data, and the end month is the
+    last date in column A. Also provides helper functions to clip DataFrames
+    (index-based and long-format) and to rewrite T2 Master.xlsx in place so
+    that on-disk data matches the GDELT date range.
 
-HOW THE WINDOW IS DEFINED:
-  - **Start month:** First row in sheet ``monthly_metronome`` where at least one
-    country column has a real number (not blank). For the current GDELT file
-    this is **2015-09-01** (September 2015).
-  - **End month:** Last date in column A of ``monthly_metronome`` (e.g. **2026-03-01**).
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT.xlsx
+        Sheet 'monthly_metronome': column A = month timestamps, row 1 =
+        country names; used to derive the analysis window.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2 Master.xlsx
+        Read and (optionally) rewritten in place by clip_t2_master_excel()
+        to keep only rows within the GDELT window.
 
-INPUT FILE:
-  - GDELT.xlsx (same folder as this module by default)
-    Sheet: monthly_metronome — column A = month stamps, row 1 = country names.
-
-OUTPUT:
-  - Helpers may rewrite workbooks (e.g. ``clip_t2_master_excel``) after a full
-    build so on-disk data matches the GDELT window.
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2 Master.xlsx
+        (modified in place when clip_t2_master_excel is called — rows
+         outside the GDELT window are removed, README sheets preserved.)
 
 VERSION: 1.1
-LAST UPDATED: 2026-03-31
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
 
-DEPENDENCIES: pandas, openpyxl (for reading GDELT.xlsx)
+DEPENDENCIES:
+    - pandas
+    - openpyxl
+
+USAGE:
+    Imported by pipeline runner scripts:
+        from T2_GDELT_analysis_window import get_gdelt_analysis_window
+        start, end = get_gdelt_analysis_window()
+
+NOTES:
+    - The GDELT.xlsx file must be present next to this module (or the path
+      passed explicitly).
+    - Raises FileNotFoundError or ValueError if the window cannot be
+      determined.
+    - clip_t2_master_excel rewrites T2 Master.xlsx in place — ensure a
+      backup exists before calling.
 =============================================================================
 """
 

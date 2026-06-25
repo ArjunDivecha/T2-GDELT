@@ -143,3 +143,22 @@ Target Optimization → Market Regime Analysis
 - `Step Five T2 GDELT Combined FAST.py` defines `USE_COVARIANCE` (default False). When it is False or `LAMBDA` is 0, no sample covariance matrix is built and the objective is scaled expected return minus HHI penalty only (no `cp.quad_form` risk term); set `USE_COVARIANCE = True` and `LAMBDA > 0` to restore the mean–variance covariance term.
 - **`GDELT Top20.xlsx`** (Step Three GDELT) uses sheets **`Full_Sample`**, **`Trailing_1Y`**, **`Trailing_3Y`**, **`Trailing_5Y`**; use **`Full_Sample`** where code assumed a single full-history sheet. Step Four GDELT also writes **`GDELT_RSQ.xlsx`** (`Monthly_RSQ`): R² of OLS on **12-month** trailing cumulative **filled** net returns (aligned with the optimizer); the **first 11** monthly rows have blank RSQ cells. **`Step Five GDELT FAST.py`** drops **all-NaN** months after loading **`GDELT_Optimizer.xlsx`** (e.g. stub incomplete last row) before trailing-window covariance, **symmetrizes** Σ before **`cp.quad_form`**, and logs dropped dates.
 - For **factor redundancy**, pairwise correlation on **`GDELT_Optimizer.xlsx`** **`Monthly_Net_Returns`** measures co-movement of **backtest return** series; redundancy in the **signal panel** should use **`GDELT_Factors_MasterCSV.csv`** via **mean monthly cross-sectional** correlation between factors—the two views can differ materially (e.g. defensive vs risk structure in the panel vs returns).
+
+## Liquidity (ADV) position cap — added 2026-06-24 (mirrored from T2 Factor Timing Fuzzy)
+
+Step Eight now applies a LIQUIDITY (ADV) POSITION CAP via the shared `step_liquidity_cap.py`:
+each country is capped so a full rotation is at most `LIQ_MAXPART` (0.20) of one day's dollar
+volume, then water-filled back to sum=1. Config lives at the top of the Step Eight script
+(`APPLY_LIQUIDITY_CAP=True`, `LIQ_MAXPART=0.20`, `LIQ_AUM=7_000_000`,
+`LIQ_PATH="Experiments Deep Dive/IBKR_Liquidity.xlsx"`). Set `APPLY_LIQUIDITY_CAP=False` to
+restore the pre-cap behavior (and the exact factor==country return identity, which the cap
+deliberately breaks because the factor model is blind to ETF liquidity).
+
+Why: at small AUM the dominant trading cost is MARKET IMPACT in thin single-country ETFs
+(Denmark/EDEN ~$0.3M ADV above all), not the ~4 bps quoted half-spread. A square-root impact
+model on IBKR ADV puts the real one-way cost at ~25-40 bps at $7M; the cap recovers ~+1.24%/yr
+net (validated via the real Step Nine in the classic repo) and is basic risk management. Same
+34-ETF universe across all three repos, so the same `IBKR_Liquidity.xlsx` ADV data is reused.
+If AUM changes materially, update `LIQ_AUM` and refresh ADV via
+`Experiments Deep Dive/Step Tcost Impact Model.py`. Full write-up: classic repo README note
+(2026-06-24) and llmchat.md.

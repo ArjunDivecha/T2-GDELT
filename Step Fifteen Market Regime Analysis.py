@@ -4,8 +4,8 @@ SCRIPT NAME: Step Fifteen Market Regime Analysis.py
 =============================================================================
 
 INPUT FILES (local):
-- T2_Optimized_Country_Weights.xlsx:
-  - Monthly_Returns sheet with optimized strategy and benchmark (long–short aware)
+- GDELT_Final_Portfolio_Returns.xlsx:
+  - Monthly Returns sheet with portfolio, equal weight benchmark, and net return
 - T2_Top_20_Exposure.csv:
   - Individual factor exposures for detailed regime analysis
 
@@ -95,22 +95,22 @@ def load_data():
     """
     logging.info("Loading data for market regime analysis...")
     
-    # Load optimized strategy returns and equal weight benchmark
-    returns_file = 'T2_Optimized_Country_Weights.xlsx'
-    returns_df = pd.read_excel(returns_file, sheet_name='Monthly_Returns', index_col=0)
+    # Load portfolio returns and equal weight benchmark
+    returns_file = 'GDELT_Final_Portfolio_Returns.xlsx'
+    returns_df = pd.read_excel(returns_file, sheet_name='Monthly Returns', index_col=0)
     returns_df.index = pd.to_datetime(returns_df.index)
     
-    # Calculate net returns (optimized strategy minus equal weight benchmark)
-    strategy_returns = returns_df['Optimized_Strategy'] - returns_df['Equal_Weight_Benchmark']
+    # Net returns are pre-computed by Step Nine
+    strategy_returns = returns_df['Net Return']
     
     # Use equal weight benchmark as market proxy for regime classification
-    market_returns = returns_df['Equal_Weight_Benchmark']
+    market_returns = returns_df['Equal Weight']
     
     logging.info(f"Loaded strategy net returns: {len(strategy_returns)} periods")
     logging.info(f"Loaded market returns for regime classification: {len(market_returns)} periods")
     
     # Load individual factor exposures for attribution analysis
-    exposure_file = 'T2_Top_20_Exposure.csv'
+    exposure_file = 'GDELT_Top_20_Exposure.csv'
     factor_exposures = pd.read_csv(exposure_file)
     factor_exposures['Date'] = pd.to_datetime(factor_exposures['Date'])
     logging.info(f"Loaded factor exposures: {factor_exposures.shape[0]} observations, {len(factor_exposures.columns)-2} factors")

@@ -1,76 +1,63 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-SCRIPT NAME: Step Four GDELT Create Monthly Top20 Returns FAST.py (Fuzzy Logic)
+SCRIPT NAME: Step Four GDELT Create Monthly Top20 Returns FAST.py
 =============================================================================
 
+DESCRIPTION:
+    Creates factor-based investment portfolios and calculates their excess
+    returns versus the equal-weight benchmark. This is the data preparation
+    step for portfolio optimization. For each GDELT factor, it ranks countries
+    monthly by factor score, applies a soft 15-25% linear taper (top 15% full
+    weight, 15-25% linearly decreasing), calculates the weighted portfolio
+    return, and subtracts the benchmark to get net excess returns. Outputs
+    monthly net returns, trailing 60-month rolling averages, 12-month rolling
+    R-squared of cumulative returns (measuring return consistency), and
+    trading cost estimates. Fills missing data using cross-sectional mean
+    imputation and scales results to percentage points.
+
 INPUT FILES:
-- GDELT_Factors_MasterCSV.csv — GDELT factors (Raw/CS/TS) + 1MRet from T2
-- Portfolio_Data.xlsx (Benchmarks sheet):
-  Equal weight benchmark returns for calculating excess returns
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Factors_MasterCSV.csv
+        GDELT factor data in long format (columns: date, country, variable,
+        value). Contains factor scores and 1MRet return series for each
+        country-date combination.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/Portfolio_Data.xlsx
+        Contains Benchmarks sheet with equal-weight benchmark return series.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/Step Tcost.xlsx
+        Trading cost data per country (Trading Cost column indexed by
+        country).
 
 OUTPUT FILES:
-- GDELT_Optimizer.xlsx (Monthly_Net_Returns sheet):
-  Monthly excess returns for each GDELT factor portfolio
-- GDELT_T60.xlsx (T60 sheet):
-  60-month trailing averages of excess returns for each factor
-- GDELT_RSQ.xlsx (Monthly_RSQ sheet):
-  R² of OLS line through cumulative net return over the trailing 12 months
-  (same monthly inputs as Optimizer after row-wise mean fill; first 11 months
-  have blank RSQ cells per factor)
-- GDELT_Trading_Cost.xlsx — same structure as T2 trading cost output
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Optimizer.xlsx
+        Monthly net excess returns for each GDELT factor portfolio (sheet:
+        Monthly_Net_Returns), scaled to percentage points.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_T60.xlsx
+        60-month trailing rolling average of excess returns for each
+        factor (sheet: T60.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_RSQ.xlsx
+        Monthly R-squared of the OLS line through the 12-month trailing
+        cumulative net return (sheet: Monthly_RSQ). First 11 months blank.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Trading_Cost.xlsx
+        Monthly factor trading costs (sheet: Trading_Costs).
 
-VERSION: 1.2 - Uses centralized gdelt_country_factor_transform utility
-LAST UPDATED: 2026-04-08
-AUTHOR: Claude Code (optimized for speed)
-
-OPTIMIZATIONS:
-- Pre-merged factor+returns data for each date to avoid repeated merges
-- Pre-indexed data lookups using dictionaries
-- Vectorized numpy operations for weight calculations
-- Centralized fuzzy logic in gdelt_country_factor_transform.py
-
-DESCRIPTION:
-This script creates factor-based investment portfolios and calculates their excess returns.
-It's the data preparation step for portfolio optimization. Here's what it does:
-
-1. PORTFOLIO CREATION: For each factor (like GDP growth, inflation, etc.):
-   - Each month, ranks all countries by their factor score
-   - Uses fuzzy logic with soft 15-25% linear taper (not hard 20% cutoff)
-   - Top 15% countries get full weight, 15-25% get linearly decreasing weight
-   - Calculates the weighted return of selected countries
-
-2. EXCESS RETURN CALCULATION: 
-   - Subtracts the benchmark return from each portfolio's return
-   - This shows how much better (or worse) the factor strategy performed
-   - Positive excess returns mean the factor strategy beat the benchmark
-
-3. DATA SMOOTHING:
-   - Creates 60-month rolling averages to reduce noise
-   - Helps identify long-term factor performance trends
-   - Fills missing data using cross-sectional averages
-
-FUZZY LOGIC FEATURES:
-- Soft 15-25% linear taper instead of hard 20% cutoff
-- Top 15% countries receive full weight (1.0)
-- Countries ranked 15-25% receive linearly decreasing weights
-- Countries below 25% receive zero weight
-- Weights normalized to sum to 1 for equal capital allocation
-- Proper handling of missing data and edge cases
+VERSION: 1.2
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
 
 DEPENDENCIES:
-- pandas >= 2.0.0
-- numpy >= 1.24.0
-- xlsxwriter (for Excel formatting)
+    - pandas >= 2.0.0
+    - numpy >= 1.24.0
+    - xlsxwriter
 
 USAGE:
-python "Step Four GDELT Create Monthly Top20 Returns FAST.py"
+    python "Step Four GDELT Create Monthly Top20 Returns FAST.py"
 
 NOTES:
-- Excludes multi-month return variables and technical indicators from analysis
-- Missing factor values are handled by skipping those country-date combinations
-- Cross-sectional mean filling ensures no missing data in final output
-- Results are scaled to percentage points (multiplied by 100)
+    - Uses fuzzy 15-25% linear taper instead of hard 20% cutoff.
+    - Excludes multi-month return variables (1MRet, etc.) from factor
+      analysis.
+    - Cross-sectional mean filling ensures no missing data in final output.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 

@@ -7,8 +7,8 @@ NOTE: All file references in this script are now LOCAL FILE NAMES ONLY (e.g., 'T
 
 
 INPUT FILES (local, LS-aware):
-- T2_Optimized_Country_Weights.xlsx:
-  - 'Monthly_Returns' with optimized strategy and benchmark (supports long–short)
+- GDELT_Final_Portfolio_Returns.xlsx:
+  - 'Monthly Returns' with portfolio, equal weight benchmark, and net return
 - T2_Top_20_Exposure.csv: factor exposures for attribution
 
 OUTPUT FILES:
@@ -82,8 +82,8 @@ MAX_REGIMES = 6 # Maximum number of regimes to test for the GMM
 N_INIT = 10 # Number of initializations to perform for the GMM
 
 # File Paths
-INPUT_FILE_RETURNS = 'T2_Optimized_Country_Weights.xlsx'
-INPUT_FILE_EXPOSURES = 'T2_Top_20_Exposure.csv'
+INPUT_FILE_RETURNS = 'GDELT_Final_Portfolio_Returns.xlsx'
+INPUT_FILE_EXPOSURES = 'GDELT_Top_20_Exposure.csv'
 OUTPUT_FILE_EXCEL = 'T2_GMM_Regime_Analysis.xlsx'
 OUTPUT_PDF_PERFORMANCE = 'T2_GMM_Regime_Performance.pdf'
 OUTPUT_PDF_FACTOR = 'T2_GMM_Factor_Analysis.pdf'
@@ -110,7 +110,7 @@ def load_data():
     """Load returns and factor exposure data."""
     logging.info("Loading data for GMM regime analysis...")
     try:
-        returns_df = pd.read_excel(INPUT_FILE_RETURNS, sheet_name='Monthly_Returns', index_col=0)
+        returns_df = pd.read_excel(INPUT_FILE_RETURNS, sheet_name='Monthly Returns', index_col=0)
         returns_df.index = pd.to_datetime(returns_df.index)
         
         factor_exposures = pd.read_csv(INPUT_FILE_EXPOSURES)
@@ -197,7 +197,7 @@ def analyze_performance_by_regime(regime_df, returns_df):
     data = returns_df.join(regime_df[['Regime_Label']])
     data.dropna(subset=['Regime_Label'], inplace=True)
     
-    net_returns = data['Optimized_Strategy'] - data['Equal_Weight_Benchmark']
+    net_returns = data['Net Return']
     
     performance_summary = []
     for regime in data['Regime_Label'].unique():
@@ -255,7 +255,7 @@ def create_visualizations(regime_df, perf_df, factor_analysis, bics, n_component
         
         # Regime Plot
         fig, ax1 = plt.subplots(figsize=(15, 8))
-        market_cumulative = (1 + returns_df['Equal_Weight_Benchmark']).cumprod()
+        market_cumulative = (1 + returns_df['Equal Weight']).cumprod()
         ax1.plot(market_cumulative.index, market_cumulative.values, color='black', label='Benchmark Cumulative Return')
         ax1.set_ylabel('Cumulative Return')
         ax1.set_yscale('log')
@@ -312,7 +312,7 @@ def main():
         logging.error("Halting execution due to data loading failure.")
         return
 
-    market_returns = returns_df['Equal_Weight_Benchmark']
+    market_returns = returns_df['Equal Weight']
     
     # 1. Feature Engineering
     features = create_regime_features(market_returns)

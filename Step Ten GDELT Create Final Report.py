@@ -1,31 +1,56 @@
 """
-GDELT Strategy Report — Step Ten (parallel track)
-================================================
+=============================================================================
+SCRIPT NAME: Step Ten GDELT Create Final Report.py
+=============================================================================
 
-INPUT FILES (GDELT track — same folder as script):
-- GDELT Top20.xlsx, GDELT_Optimizer.xlsx, GDELT_rolling_window_weights.xlsx
-- GDELT_Final_Country_Weights.xlsx, GDELT_Final_Portfolio_Returns.xlsx
-- GDELT_strategy_statistics.xlsx
+DESCRIPTION:
+    Generates a comprehensive PDF strategy report for the GDELT investment
+    strategy. Reads six Excel input files containing portfolio analysis, factor
+    weights, country allocations, strategy statistics, and monthly returns.
+    Creates an 8-section PDF report with tables, bar charts, cumulative
+    performance plots, and heatmaps comparing expanding window vs hybrid window
+    strategies. Combines features from both streamlined and enhanced report
+    versions into a single comprehensive output.
 
-OUTPUT:
-- GDELT_Strategy_Report_Comprehensive_YYYY-MM-DD.pdf
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT Top20.xlsx
+        Top 20 portfolio analysis data (feature performance table).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Optimizer.xlsx
+        Factor returns data for monthly net return analysis.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_rolling_window_weights.xlsx
+        Rolling window factor portfolio weights over time.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Country_Weights.xlsx
+        Final country allocation weights for geographic distribution.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Portfolio_Returns.xlsx
+        Portfolio monthly returns and cumulative performance data.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_strategy_statistics.xlsx
+        Strategy statistics (expanding window vs hybrid window) and monthly
+        returns for performance comparison.
 
-This comprehensive version combines all features from both streamlined and enhanced versions:
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Strategy_Report_Comprehensive_YYYY-MM-DD.pdf
+        Comprehensive PDF report with 8 analysis sections, tables, and charts.
 
-STREAMLINED SECTIONS:
-1. Top 20 Portfolio Analysis (table)
-2. Factor Returns Analysis (table)
-3. Current Factor Allocation (table + bar chart combined)
-4. Top 20 Country Allocations (horizontal bar chart)
-5. Portfolio Returns (1, 3, 12 month) - bar chart and table
+VERSION: 2.1
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
 
-ENHANCED SECTIONS:
-6. Strategy Statistics Comparison (table)
-7. Strategy Performance Chart (cumulative performance)
-8. Portfolio Returns Analysis (enhanced cumulative chart)
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - matplotlib
+    - fpdf
+    - io
 
-Version: 2.1 GDELT track
-Date: 2026-04-02
+USAGE:
+    python "Step Ten GDELT Create Final Report.py"
+
+NOTES:
+    - All input files must be in the same directory as the script.
+    - Missing input files generate placeholder error messages in the report.
+    - Report PDF is saved to the script directory and automatically opened
+      on macOS.
+=============================================================================
 """
 
 import pandas as pd

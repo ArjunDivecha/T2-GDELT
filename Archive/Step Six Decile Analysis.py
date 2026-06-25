@@ -42,7 +42,7 @@ import os
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 
-def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: int = 36, allowed_factors: list = None) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame]:
+def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: int = 36, allowed_factors: list = None, sheet_name: str = "Monthly_Net_Returns") -> tuple[pd.Series, pd.DataFrame, pd.DataFrame]:
     """
     Run the factor timing strategy using a specific decile of factors.
     
@@ -59,6 +59,7 @@ def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: in
     - decile: Which decile to select (1=top 10%, 2=next 10%, ..., 10=bottom 10%)
     - lookback: How many months to look back when scoring factors (default: 36)
     - allowed_factors: List of factor names to consider (if None, uses all factors)
+    - sheet_name: Sheet name in the Excel file to read
     
     OUTPUTS:
     - strategy_returns: Monthly returns of the strategy as a pandas Series
@@ -70,9 +71,11 @@ def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: in
     """
     
     # Read data
-    df = pd.read_excel(excel_path)
-    df.index = pd.to_datetime(df.iloc[:,0])
-    returns_df = df.iloc[:,1:].astype(float) / 100
+    df = pd.read_excel(excel_path, sheet_name=sheet_name, index_col=0)
+    df.index = pd.to_datetime(df.index, errors="coerce")
+    df = df[~df.index.isna()]
+    returns_df = df.apply(pd.to_numeric, errors="coerce").astype(float) / 100.0
+
     
     # Filter for allowed factors if specified
     if allowed_factors is not None:
@@ -86,22 +89,18 @@ def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: in
         returns_df = returns_df[filtered_factors]
         print(f"Filtered returns data to {len(filtered_factors)} allowed factors.")
     
-    # Initialize factor scores dataframe
-    factor_scores = pd.DataFrame(0.0, index=returns_df.index, columns=returns_df.columns)
+    # Initialize factor scores dataframe using fast vectorized rolling calculation
+    rolling_mean = returns_df.rolling(lookback, min_periods=lookback).mean()
+    rolling_hit_rate = (returns_df > 0).astype(float).rolling(lookback, min_periods=lookback).mean()
+    rolling_std = returns_df.rolling(lookback, min_periods=lookback).std()
+    rolling_sharpe = (rolling_mean / rolling_std).fillna(0)
+    factor_scores = rolling_mean * rolling_hit_rate * (1 + rolling_sharpe)
+    factor_scores = factor_scores.fillna(0.0)
     
-    # Calculate scores for each date
-    for date in returns_df.index[lookback:]:
-        hist_data = returns_df.loc[:date]
-        
-        for factor in returns_df.columns:
-            # Calculate components of factor score
-            momentum = hist_data[factor].tail(lookback).mean()
-            hit_rate = (hist_data[factor].tail(lookback) > 0).mean()
-            vol = hist_data[factor].tail(lookback).std()
-            sharpe = momentum / vol if vol != 0 else 0
-            
-            # Combined score weights momentum, hit rate and risk-adjusted return
-            factor_scores.loc[date, factor] = momentum * hit_rate * (1 + sharpe)
+    # Precalculate 12-month trailing returns for all factors in one vectorized operation
+    cum_prod = (1 + returns_df).cumprod()
+    trailing_12m = (cum_prod / cum_prod.shift(12)) - 1
+    trailing_12m = trailing_12m.fillna(0.0)
     
     # Generate positions using decile approach
     positions = pd.DataFrame(0.0, index=returns_df.index, columns=returns_df.columns)
@@ -132,14 +131,11 @@ def factor_timing_strategy_decile(excel_path: str, decile: int = 1, lookback: in
                 decile_factors = sorted_factors.iloc[start_idx:end_idx]
                 
                 if len(decile_factors) > 0:
-                    # Calculate 12-month trailing returns for decile factors
+                    # Calculate 12-month trailing returns for decile factors (instant lookups)
                     trailing_returns = {}
                     for factor in decile_factors.index:
-                        # Get the last 12 months of returns for this factor
-                        hist_data = returns_df[factor].loc[:date].tail(12)
-                        # Calculate cumulative return over 12 months
-                        twelve_month_return = (1 + hist_data).prod() - 1
-                        trailing_returns[factor] = max(twelve_month_return, 0)  # Only use positive trailing returns
+                        twelve_month_return = trailing_12m.loc[date, factor]
+                        trailing_returns[factor] = max(twelve_month_return, 0.0)  # Only use positive trailing returns
                     
                     # Calculate weights proportional to 12-month trailing returns
                     total_trailing = sum(trailing_returns.values())
@@ -193,7 +189,7 @@ def calculate_performance_metrics(returns: pd.Series, positions: pd.DataFrame) -
     
     return ann_return, sharpe, turnover
 
-def run_decile_grid_search(excel_path: str, deciles_list: list[int], lookbacks_list: list[int], allowed_factors: list = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def run_decile_grid_search(excel_path: str, deciles_list: list[int], lookbacks_list: list[int], allowed_factors: list = None, sheet_name: str = "Monthly_Net_Returns") -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Test all combinations of deciles and lookback periods to find the best settings.
     
@@ -209,6 +205,7 @@ def run_decile_grid_search(excel_path: str, deciles_list: list[int], lookbacks_l
     - deciles_list: List of deciles to test (e.g., [1,2,3,4,5,6,7,8,9,10])
     - lookbacks_list: List of different lookback periods to test (e.g., [24,36,60,72,90])
     - allowed_factors: List of factor names to consider (if None, uses all factors)
+    - sheet_name: Sheet name in the Excel file to read
     
     OUTPUTS:
     - returns_grid: DataFrame with annualized returns for each combination
@@ -237,7 +234,7 @@ def run_decile_grid_search(excel_path: str, deciles_list: list[int], lookbacks_l
             try:
                 # Run strategy with current parameters
                 returns, positions, _ = factor_timing_strategy_decile(excel_path, decile=decile, 
-                                                                   lookback=lookback, allowed_factors=allowed_factors)
+                                                                   lookback=lookback, allowed_factors=allowed_factors, sheet_name=sheet_name)
                 
                 # Calculate performance metrics
                 ann_return, sharpe, turnover = calculate_performance_metrics(returns, positions)
@@ -289,7 +286,7 @@ def format_grid(grid: pd.DataFrame, is_return: bool = True) -> pd.DataFrame:
     else:
         return grid.map(lambda x: f"{x:.2f}" if pd.notnull(x) else "N/A")
 
-def create_cumulative_returns_plot(excel_path: str, lookback: int, allowed_factors: list, output_path: str = "outputs/visualizations/decile_cumulative_returns_60m.pdf"):
+def create_cumulative_returns_plot(excel_path: str, lookback: int, allowed_factors: list, output_path: str = "outputs/visualizations/gdelt_decile_cumulative_returns_60m.pdf", sheet_name: str = "Monthly_Net_Returns"):
     """
     Create a cumulative returns plot for all 10 deciles using the specified lookback period.
     
@@ -306,6 +303,7 @@ def create_cumulative_returns_plot(excel_path: str, lookback: int, allowed_facto
     - lookback: Lookback period to use for all deciles
     - allowed_factors: List of factor names to consider
     - output_path: Path where to save the PDF chart
+    - sheet_name: Sheet name in the Excel file to read
     
     OUTPUTS:
     - Saves a PDF chart showing cumulative returns for all deciles
@@ -324,7 +322,7 @@ def create_cumulative_returns_plot(excel_path: str, lookback: int, allowed_facto
         try:
             print(f"Processing decile {decile}...", end=" ")
             returns, positions, _ = factor_timing_strategy_decile(excel_path, decile=decile, 
-                                                               lookback=lookback, allowed_factors=allowed_factors)
+                                                               lookback=lookback, allowed_factors=allowed_factors, sheet_name=sheet_name)
             
             # Calculate cumulative returns (starting from $1)
             cumulative_returns[f"Decile {decile}"] = (1 + returns).cumprod()
@@ -390,8 +388,8 @@ if __name__ == "__main__":
     lookbacks_list = [24, 36, 60, 72, 90]
     
     # Load factor categories to filter only those with Max=1
-    print("Loading factor categories from Step Factor Categories.xlsx...")
-    factor_categories = pd.read_excel("Step Factor Categories.xlsx")
+    print("Loading factor categories from Step Factor Categories GDELT.xlsx...")
+    factor_categories = pd.read_excel("Step Factor Categories GDELT.xlsx")
     allowed_factors = factor_categories[factor_categories["Max"] == 1]["Factor Name"].tolist()
     
     print(f"Found {len(allowed_factors)} factors with Max=1 that will be included in the decile analysis:")
@@ -399,10 +397,11 @@ if __name__ == "__main__":
     print()
     
     # Run decile grid search with filtered factors
-    returns_grid, sharpe_grid, turnover_grid = run_decile_grid_search("T2_Optimizer.xlsx", 
+    returns_grid, sharpe_grid, turnover_grid = run_decile_grid_search("GDELT_Optimizer.xlsx", 
                                                                     deciles_list, 
                                                                     lookbacks_list, 
-                                                                    allowed_factors=allowed_factors)
+                                                                    allowed_factors=allowed_factors,
+                                                                    sheet_name="Monthly_Net_Returns")
     
     # Format grids for display
     returns_formatted = format_grid(returns_grid, is_return=True)
@@ -411,19 +410,19 @@ if __name__ == "__main__":
     
     # Display results
     print("\n" + "="*100)
-    print("ANNUALIZED RETURNS GRID BY DECILE")
+    print("ANNUALIZED RETURNS GRID BY DECILE (GDELT)")
     print("="*100)
     print("Rows: Lookback Periods, Columns: Deciles (D1=Top 10%, D2=Next 10%, ..., D10=Bottom 10%)")
     print(tabulate(returns_formatted, headers='keys', tablefmt='grid'))
     
     print("\n" + "="*100)
-    print("SHARPE RATIOS GRID BY DECILE")
+    print("SHARPE RATIOS GRID BY DECILE (GDELT)")
     print("="*100)
     print("Rows: Lookback Periods, Columns: Deciles (D1=Top 10%, D2=Next 10%, ..., D10=Bottom 10%)")
     print(tabulate(sharpe_formatted, headers='keys', tablefmt='grid'))
     
     print("\n" + "="*100)
-    print("MONTHLY TURNOVER GRID BY DECILE")
+    print("MONTHLY TURNOVER GRID BY DECILE (GDELT)")
     print("="*100)
     print("Rows: Lookback Periods, Columns: Deciles (D1=Top 10%, D2=Next 10%, ..., D10=Bottom 10%)")
     print(tabulate(turnover_formatted, headers='keys', tablefmt='grid'))
@@ -434,7 +433,7 @@ if __name__ == "__main__":
     min_turnover_idx = turnover_grid.stack().idxmin()
     
     print("\n" + "="*100)
-    print("BEST COMBINATIONS BY DECILE")
+    print("BEST COMBINATIONS BY DECILE (GDELT)")
     print("="*100)
     print(f"Best Return: {returns_grid.stack().max()*100:.2f}% with {max_return_idx[1]} and {max_return_idx[0]} lookback")
     print(f"Best Sharpe: {sharpe_grid.stack().max():.2f} with {max_sharpe_idx[1]} and {max_sharpe_idx[0]} lookback")
@@ -442,7 +441,7 @@ if __name__ == "__main__":
     
     # Additional analysis: Show performance trend across deciles for best lookback
     print("\n" + "="*100)
-    print("DECILE PERFORMANCE ANALYSIS")
+    print("DECILE PERFORMANCE ANALYSIS (GDELT)")
     print("="*100)
     
     # Find best performing lookback period based on average Sharpe across all deciles
@@ -467,9 +466,11 @@ if __name__ == "__main__":
     
     # Generate cumulative returns chart for 60-month lookback
     print("\n" + "="*100)
-    print("CUMULATIVE RETURNS VISUALIZATION")
+    print("CUMULATIVE RETURNS VISUALIZATION (GDELT)")
     print("="*100)
     
-    cumulative_returns_60m = create_cumulative_returns_plot("T2_Optimizer.xlsx", 
+    cumulative_returns_60m = create_cumulative_returns_plot("GDELT_Optimizer.xlsx", 
                                                            lookback=60, 
-                                                           allowed_factors=allowed_factors)
+                                                           allowed_factors=allowed_factors,
+                                                           output_path="outputs/visualizations/gdelt_decile_cumulative_returns_60m.pdf",
+                                                           sheet_name="Monthly_Net_Returns")

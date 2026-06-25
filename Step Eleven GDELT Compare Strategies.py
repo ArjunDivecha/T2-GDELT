@@ -1,23 +1,51 @@
 """
 =============================================================================
-SCRIPT: Step Eleven GDELT Compare Strategies.py
+SCRIPT NAME: Step Eleven GDELT Compare Strategies.py
 =============================================================================
 
-Compares country-weight portfolios (from Step Eight outputs) against the equal-weight
-benchmark. Missing optional files (e.g. T2_Final_Country_Weights.xlsx) are skipped.
+DESCRIPTION:
+    Compares country-weight portfolio strategies (GDELT and optional T2)
+    against an equal-weight benchmark. Reads country weights from Excel,
+    calculates monthly portfolio returns by weighting individual country
+    returns, then computes cumulative returns, net returns vs benchmark, and
+    performance statistics (annual return, volatility, Sharpe ratio, max
+    drawdown, hit rate). Outputs a two-panel PDF chart and a multi-sheet Excel
+    workbook. Missing optional weight files are gracefully skipped.
 
-INPUT:
-- Portfolio_Data.xlsx
-- GDELT_Final_Country_Weights.xlsx (required)
-- T2_Final_Country_Weights.xlsx (optional, for side-by-side)
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/Portfolio_Data.xlsx
+        Contains Returns and Benchmarks sheets with individual country monthly
+        returns and equal-weight benchmark series.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Country_Weights.xlsx
+        GDELT strategy country weight allocations per period (All Periods sheet
+        indexed by date with country columns).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2_Final_Country_Weights.xlsx
+        Optional T2 strategy country weights for side-by-side comparison
+        (skipped gracefully if missing).
 
-OUTPUT:
-- GDELT_Compare_Strategies.pdf
-- GDELT_Compare_Return_Results.xlsx
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Compare_Strategies.pdf
+        Two-panel chart: cumulative returns comparison and cumulative net
+        returns vs equal-weight benchmark.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Compare_Return_Results.xlsx
+        Excel workbook with sheets: Monthly Returns, Cumulative Returns,
+        and Statistics for all compared strategies.
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Eleven GDELT Compare Strategies.py"
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - matplotlib
+
+USAGE:
+    python "Step Eleven GDELT Compare Strategies.py"
+
+NOTES:
+    - T2_Final_Country_Weights.xlsx is optional; missing file is skipped.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 

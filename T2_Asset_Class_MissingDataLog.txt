@@ -1,0 +1,39 @@
+Missing country mappings and replacements (mean imputation):
+
+Data completeness (nonzero count by country):
+
+Final Portfolio:
+Australia: 5
+Brazil: 3
+Canada: 4
+Chile: 4
+ChinaA: 3
+ChinaH: 3
+Denmark: 2
+France: 2
+Germany: 3
+Hong Kong: 2
+India: 3
+Indonesia: 2
+Italy: 3
+Japan: 2
+Korea: 2
+Malaysia: 5
+Mexico: 3
+NASDAQ: 4
+Netherlands: 4
+Philippines: 5
+Poland: 3
+Saudi Arabia: 3
+Singapore: 4
+South Africa: 3
+Spain: 2
+Sweden: 2
+Switzerland: 2
+Taiwan: 5
+Thailand: 2
+Turkey: 4
+U.K.: 3
+U.S.: 4
+US SmallCap: 5
+Vietnam: 2

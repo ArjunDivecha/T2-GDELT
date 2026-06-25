@@ -1,15 +1,43 @@
 """
-Multi-window performance summary for Step Five (T2, GDELT, Combined).
+=============================================================================
+SCRIPT NAME: step_five_multiwindow_stats.py
+=============================================================================
 
-Builds the same metrics as ``calculate_strategy_performance`` for:
-- Full sample
-- Last 12 months
-- Last 3 years (36 months)
-- Last 5 years (60 months)
+DESCRIPTION:
+    Computes a multi-window performance summary table for Step Five (T2,
+    GDELT, Combined) strategy returns. For each of four lookback windows
+    (full period, trailing 12 months, trailing 36 months, trailing 60
+    months), it calculates eight standard performance metrics: annualised
+    return, annualised volatility, Sharpe ratio, maximum drawdown, average
+    monthly turnover, positive-months percentage, skewness, and kurtosis.
+    The table is printed to the log via a fixed-width formatter and also
+    returned as a DataFrame for optional reuse. This is a utility module
+    with no direct file I/O — it operates on pandas Series passed as
+    arguments.
 
-Used only for terminal logging (fixed-width table).
+INPUT FILES:
+    (none — this module accepts pandas Series as function arguments)
 
-VERSION: 1.0  LAST UPDATED: 2026-04-02
+OUTPUT FILES:
+    (none — this module returns a DataFrame and logs a formatted table)
+
+VERSION: 1.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+
+USAGE:
+    Imported by Step Five scripts; not intended for standalone execution.
+    from step_five_multiwindow_stats import log_step_five_multiwindow_table
+
+NOTES:
+    - Metrics are annualised using a factor of 12 (monthly data).
+    - Only used for terminal logging — no files are read or written.
+    - NaN/Inf values in output cells are formatted as 'n/a'.
+=============================================================================
 """
 
 from __future__ import annotations

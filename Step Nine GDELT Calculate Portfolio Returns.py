@@ -1,19 +1,54 @@
 """
 =============================================================================
-SCRIPT: Step Nine GDELT Calculate Portfolio Returns.py
+SCRIPT NAME: Step Nine GDELT Calculate Portfolio Returns.py
 =============================================================================
 
-INPUT:
-- GDELT_Final_Country_Weights.xlsx (Step Eight)
-- Portfolio_Data.xlsx (Returns + Benchmarks)
+DESCRIPTION:
+    Calculates portfolio returns for the GDELT strategy from country weight
+    allocations. Reads country weights (from Step Eight) and individual
+    country monthly returns with benchmark data, then computes weighted
+    portfolio returns, turnover statistics, and net excess returns over the
+    equal-weight benchmark. Aligns dates by using current month's country
+    weights with next month's returns. Generates a three-panel PDF chart
+    (cumulative total returns, net returns, and monthly turnover) and a
+    multi-sheet Excel workbook with monthly returns, cumulative returns,
+    statistics, net returns, and turnover analysis.
 
-OUTPUT:
-- GDELT_Final_Portfolio_Returns.xlsx
-- GDELT_Final_Portfolio_Returns.pdf
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Country_Weights.xlsx
+        GDELT strategy country weight allocations per period (All Periods
+        sheet, indexed by date with country columns).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/Portfolio_Data.xlsx
+        Contains Returns sheet (individual country monthly returns) and
+        Benchmarks sheet (equal-weight and other benchmark series).
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Nine GDELT Calculate Portfolio Returns.py"
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Portfolio_Returns.xlsx
+        Excel workbook with sheets: Monthly Returns, Cumulative Returns,
+        Statistics, Net Returns, and Turnover Analysis.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Portfolio_Returns.pdf
+        Three-panel chart: cumulative total returns, cumulative net returns,
+        and monthly turnover over time.
+
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - matplotlib
+    - seaborn
+    - xlsxwriter
+    - pathlib
+
+USAGE:
+    python "Step Nine GDELT Calculate Portfolio Returns.py"
+
+NOTES:
+    - Uses next-month return alignment (weights at t, returns at t+1).
+    - Output PDF and xlsx are saved alongside input files.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 

@@ -1,20 +1,60 @@
 """
 =============================================================================
-SCRIPT: Step Eight GDELT Write Country Weights.py
+SCRIPT NAME: Step Eight GDELT Write Country Weights.py
 =============================================================================
 
-INPUT:
-- GDELT_rolling_window_weights.xlsx
-- GDELT_Factors_MasterCSV.csv
-- T2 Master.xlsx (country order for Country_Final)
+DESCRIPTION:
+    Converts factor-level optimised weights into country-level portfolio
+    weights using a centralised utility (calculate_country_weights_from_factors
+    from gdelt_country_factor_transform). For each date, it loads the
+    factor net weights from GDELT_rolling_window_weights.xlsx, retrieves
+    the next-month (t+1) factor exposures from GDELT_Factors_MasterCSV.csv
+    to match Step Five's timing convention, and computes country weights.
+    Results are saved to GDELT_Final_Country_Weights.xlsx with summary
+    statistics and latest-weight sheets. A separate GDELT_Country_Final.xlsx
+    is written aligned to the T2 Master.xlsx country order.
 
-OUTPUT:
-- GDELT_Final_Country_Weights.xlsx
-- GDELT_Country_Final.xlsx
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_rolling_window_weights.xlsx
+        Factor net weights per date from Step Five. Read from sheet
+        'Net_Weights' (or first sheet).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Factors_MasterCSV.csv
+        Long/tidy format: columns date, country, variable, value. Contains
+        factor exposures used to map factor weights to country weights.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/T2 Master.xlsx
+        Reference file whose column headers define the country ordering
+        for the final output file.
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Eight GDELT Write Country Weights.py"
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Final_Country_Weights.xlsx
+        Multi-sheet workbook: All Periods (full weight matrix), Summary
+        Statistics (mean, std, min, max per country), Latest Weights
+        (most recent non-zero date snapshot).
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_Country_Final.xlsx
+        Single-sheet workbook with non-zero country weights sorted by
+        weight descending, aligned to T2 Master country order, plus a
+        TOTAL row.
+
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - tqdm
+    - xlsxwriter
+    - gdelt_country_factor_transform (local module)
+
+USAGE:
+    python "Step Eight GDELT Write Country Weights.py"
+
+NOTES:
+    - Uses t+1 exposures to align with Step Five's timing convention:
+      weights(t) x factor_returns(t+1).
+    - GDELT factors are not inverted — sign-flip is handled upstream in
+      Step Two.
+    - Weight sums are validated; warning printed if total deviates from 1.0.
 =============================================================================
 """
 
@@ -31,6 +71,23 @@ weights_file = "GDELT_rolling_window_weights.xlsx"
 factor_file = "GDELT_Factors_MasterCSV.csv"
 OUTPUT_FILE = "GDELT_Final_Country_Weights.xlsx"
 COUNTRY_FINAL_FILE = "GDELT_Country_Final.xlsx"
+
+# ===============================
+# LIQUIDITY (ADV) POSITION CAP  -- shared utility
+# ===============================
+# At small AUM the dominant trading cost is market impact in thin single-country
+# ETFs (Denmark/EDEN etc.). The factor model is blind to liquidity, so it can
+# size positions you cannot trade. After building the country weights we cap each
+# name so a full rotation is at most LIQ_MAXPART of one day's $ADV, then water-fill
+# back to sum=1. Validated in the classic T2 repo to add ~+1.2%/yr net at $7M
+# (raises gross AND cuts impact cost); also basic risk management. Same 34-ETF
+# universe as the classic repo, so the same IBKR_Liquidity.xlsx ADV data applies.
+from step_liquidity_cap import load_adv, apply_liquidity_cap
+
+APPLY_LIQUIDITY_CAP = True          # set False to restore the pre-cap behavior
+LIQ_MAXPART = 0.20                  # full rotation <= 20% of one day's ADV
+LIQ_AUM = 7_000_000                 # portfolio value (drives the dollar cap)
+LIQ_PATH = "Experiments Deep Dive/IBKR_Liquidity.xlsx"  # per-ETF $ADV cache
 
 # ===============================
 # DATA LOADING
@@ -99,6 +156,25 @@ for i, date in enumerate(tqdm(all_dates)):
     
     # Store weights at original date t (weights are applied at t, but based on t+1 exposures)
     all_weights.loc[date, country_weights.index] = country_weights.values
+
+# ===============================
+# LIQUIDITY (ADV) POSITION CAP
+# ===============================
+# Cap each country so a full rotation stays within LIQ_MAXPART of one day's ADV,
+# then water-fill back to sum=1. Deliberately breaks the exact factor==country
+# return identity (the factor model is blind to liquidity); intentional and
+# net-positive at small AUM. Disable with APPLY_LIQUIDITY_CAP = False.
+if APPLY_LIQUIDITY_CAP:
+    print(f"\nApplying liquidity cap (MAXPART={LIQ_MAXPART:.0%}, AUM=${LIQ_AUM:,.0f})...")
+    adv = load_adv(LIQ_PATH, list(all_weights.columns))
+    to_before = 0.5 * all_weights.diff().abs().sum(axis=1).dropna().mean()
+    all_weights, cap_report = apply_liquidity_cap(all_weights, adv, LIQ_AUM, LIQ_MAXPART)
+    to_after = 0.5 * all_weights.diff().abs().sum(axis=1).dropna().mean()
+    n_capped = int((cap_report["Cap_%"] < 99.9).sum())
+    print(f"  {n_capped} names capped; one-way turnover {to_before*100:.1f}% -> "
+          f"{to_after*100:.1f}%/mo (raw turnover may rise; COST falls)")
+    print(cap_report[cap_report["Bind_Freq_%"] > 0]
+          [["ADV_USD", "Cap_%", "Bind_Freq_%"]].round(2).head(8).to_string())
 
 # ===============================
 # VALIDATION

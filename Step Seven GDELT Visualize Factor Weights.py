@@ -1,14 +1,47 @@
 """
 =============================================================================
-SCRIPT: Step Seven GDELT Visualize Factor Weights.py
+SCRIPT NAME: Step Seven GDELT Visualize Factor Weights.py
 =============================================================================
 
-INPUT:  GDELT_rolling_window_weights.xlsx (from Step Five GDELT FAST)
-OUTPUT: GDELT_latest_factor_allocation.pdf, GDELT_factor_allocation_grid.pdf
+DESCRIPTION:
+    Visualizes GDELT factor portfolio weights over time. Reads the rolling
+    window weights Excel file (from Step Five), identifies factors with
+    significant allocation (max absolute weight > 5%), and generates two PDF
+    charts: (1) a horizontal bar chart of the latest month's factor
+    allocation, colored blue for positive and red for negative weights, and
+    (2) a small-multiples grid showing each factor's weight evolution over
+    the full time series. Provides a quick visual overview of which factors
+    drive portfolio composition and how allocations change through time.
 
-VERSION: 2.0 — standalone (no external module dependencies)
-LAST UPDATED: 2026-04-08
-USAGE: python "Step Seven GDELT Visualize Factor Weights.py"
+INPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_rolling_window_weights.xlsx
+        Rolling window factor portfolio weights over time (sheet: Net_Weights,
+        indexed by date with factor columns.
+
+OUTPUT FILES:
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_latest_factor_allocation.pdf
+        Horizontal bar chart of the most recent month's factor weights,
+        showing top factors with absolute weight > 0.1%.
+    /Users/arjundivecha/Dropbox/AAA Backup/A Complete/T2 GDELT/GDELT_factor_allocation_grid.pdf
+        Small-multiples line chart grid showing each factor's weight
+        evolution over the full time period.
+
+VERSION: 2.0
+LAST UPDATED: 2026-06-05
+AUTHOR: Arjun Divecha
+
+DEPENDENCIES:
+    - pandas
+    - numpy
+    - matplotlib
+
+USAGE:
+    python "Step Seven GDELT Visualize Factor Weights.py"
+
+NOTES:
+    - Factor threshold is 5% max absolute weight; falls back to top 5 factors
+      by average absolute weight if none exceed threshold.
+    - All input/output files reside in the same directory as the script.
 =============================================================================
 """
 
